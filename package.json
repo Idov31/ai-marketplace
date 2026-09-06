@@ -1,0 +1,51 @@
+{
+  "name": "ai-marketplace-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "plugins/ai-marketplace",
+    "plugins/ai-marketplace-claude"
+  ],
+  "scripts": {
+    "build:core": "npm run build -w @ai-marketplace/core",
+    "build:node-cli": "npm run build -w @ai-marketplace/node-cli",
+    "build:vscode": "npm run compile -w ai-marketplace",
+    "build:codex": "npm run build -w @ai-marketplace/codex-plugin",
+    "build:claude": "npm run build -w @ai-marketplace/claude-plugin",
+    "compile": "npm run build:core && npm run build:node-cli && npm run build:vscode && npm run build:codex && npm run build:claude",
+    "lint": "npm run lint -w @ai-marketplace/core && npm run lint -w @ai-marketplace/node-cli && npm run lint -w ai-marketplace && npm run lint -w @ai-marketplace/codex-plugin && npm run lint -w @ai-marketplace/claude-plugin",
+    "test": "npm run test -w @ai-marketplace/core && npm run test -w @ai-marketplace/node-cli && npm run test -w ai-marketplace && npm run test -w @ai-marketplace/codex-plugin && npm run test -w @ai-marketplace/claude-plugin",
+    "validate:plugin": "npm run build:codex && npm run validate -w @ai-marketplace/codex-plugin",
+    "validate:claude-plugin": "npm run build:claude && npm run validate -w @ai-marketplace/claude-plugin && npm exec -- claude plugin validate ./plugins/ai-marketplace-claude --strict && npm exec -- claude plugin validate . --strict",
+    "package:vscode": "node scripts/package-vscode.mjs",
+    "package:codex": "npm run validate:plugin && node scripts/package-codex-plugin.mjs",
+    "package:claude": "npm run validate:claude-plugin && node scripts/package-claude-plugin.mjs",
+    "validate:release-versions": "node scripts/validate-release-versions.mjs",
+    "validate:tag-version": "node scripts/validate-tag-version.mjs",
+    "generate:manifest-schema": "npm run build:core && node scripts/generate-manifest-schema.mjs",
+    "validate:manifest-schema": "npm run build:core && node scripts/generate-manifest-schema.mjs --check",
+    "package": "npm run package:vscode && npm run package:codex && npm run package:claude",
+    "test:vscode": "npm run test:vscode -w ai-marketplace"
+  },
+  "devDependencies": {
+    "@anthropic-ai/claude-code": "2.1.246",
+    "@types/node": "^22.10.2",
+    "@types/vscode": "^1.90.0",
+    "@typescript-eslint/eslint-plugin": "^8.18.1",
+    "@typescript-eslint/parser": "^8.18.1",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/vsce": "^3.9.2",
+    "ajv": "^6.14.0",
+    "esbuild": "^0.28.1",
+    "eslint": "^9.17.0",
+    "ovsx": "1.1.1",
+    "typescript": "^5.7.2"
+  },
+  "overrides": {
+    "diff": "^8.0.3",
+    "fast-uri": "^3.1.6",
+    "qs": "^6.16.0",
+    "serialize-javascript": "^7.0.5"
+  }
+}

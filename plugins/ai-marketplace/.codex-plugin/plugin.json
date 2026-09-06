@@ -1,0 +1,41 @@
+{
+  "name": "ai-marketplace",
+  "version": "1.0.0",
+  "description": "Browse and safely manage AI Marketplace packages for Codex workspaces and your user profile.",
+  "author": {
+    "name": "Idov31",
+    "url": "https://github.com/Idov31"
+  },
+  "homepage": "https://github.com/Idov31/ai-marketplace",
+  "repository": "https://github.com/Idov31/ai-marketplace",
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "marketplace",
+    "packages",
+    "skills"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "AI Marketplace",
+    "shortDescription": "Browse and manage AI Marketplace packages for Codex.",
+    "longDescription": "Discover, install, update, migrate, revert, hotload, offload, and remove Codex packages from configured GitHub repositories.",
+    "developerName": "Idov31",
+    "category": "Engineering",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/Idov31/ai-marketplace",
+    "privacyPolicyURL": "https://github.com/Idov31/ai-marketplace/blob/master/PRIVACY.md",
+    "termsOfServiceURL": "https://github.com/Idov31/ai-marketplace/blob/master/TERMS.md",
+    "defaultPrompt": [
+      "Open AI Marketplace in a dashboard.",
+      "Install a Codex skill into this workspace.",
+      "Check my installed Codex packages for updates."
+    ],
+    "brandColor": "#6F42C1",
+    "composerIcon": "./assets/ai-marketplace.png",
+    "logo": "./assets/ai-marketplace.png"
+  }
+}

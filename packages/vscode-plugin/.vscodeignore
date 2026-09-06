@@ -1,0 +1,15 @@
+node_modules/
+src/
+test/
+out-test/
+.github/
+.vscode/
+.project/
+scripts/
+.gitignore
+AGENTS.md
+ai-marketplace-*.vsix
+*.map
+**/*.map
+tsconfig*.json
+eslint.config.mjs

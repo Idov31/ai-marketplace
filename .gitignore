@@ -1,0 +1,11 @@
+node_modules/
+out/
+out-test/
+*.vsix
+dist/
+.DS_Store
+.codex/
+.ai_marketplace/
+.project/
+docs/
+bin/

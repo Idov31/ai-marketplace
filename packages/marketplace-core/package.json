@@ -1,0 +1,17 @@
+{
+  "name": "@ai-marketplace/core",
+  "version": "1.0.0",
+  "private": true,
+  "main": "out/index.js",
+  "types": "out/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "compile:test": "tsc -p tsconfig.test.json",
+    "lint": "eslint src test --ext ts",
+    "test": "npm run build && npm run compile:test && node --test \"out-test/test/*.test.js\""
+  },
+  "dependencies": {
+    "yaml": "^2.9.0"
+  },
+  "devDependencies": { "@types/node": "^22.10.2", "typescript": "^5.7.2" }
+}

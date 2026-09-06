@@ -1,0 +1,18 @@
+{
+  "name": "ai-marketplace",
+  "version": "1.0.0",
+  "description": "Browse and safely manage AI Marketplace packages for Claude Code workspaces and your user profile.",
+  "author": {
+    "name": "Idov31",
+    "url": "https://github.com/Idov31"
+  },
+  "homepage": "https://github.com/Idov31/ai-marketplace",
+  "repository": "https://github.com/Idov31/ai-marketplace",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "marketplace",
+    "packages",
+    "skills"
+  ]
+}

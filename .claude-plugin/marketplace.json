@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "ai-marketplace",
+  "description": "Discover and safely manage AI Marketplace packages from Claude Code.",
+  "owner": {
+    "name": "Idov31"
+  },
+  "plugins": [
+    {
+      "name": "ai-marketplace",
+      "description": "Browse and safely manage AI Marketplace packages for Claude Code.",
+      "version": "1.0.0",
+      "source": "./plugins/ai-marketplace-claude",
+      "category": "development"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+name: Bug report
+description: Report a reproducible problem
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not report vulnerabilities or include credentials. Use the private security reporting link in SECURITY.md.
+  - type: dropdown
+    id: interface
+    attributes:
+      label: Interface
+      options: [VS Code, Cursor, Codex, Claude Code]
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description and reproduction steps
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Redacted logs
+      description: Remove credentials, authorization headers, and private repository content.

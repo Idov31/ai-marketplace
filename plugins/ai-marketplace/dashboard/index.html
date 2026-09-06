@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'">
+    <title>AI Marketplace</title>
+    <link rel="stylesheet" href="./styles.css">
+    <script src="./app.js" type="module"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#package-results">Skip to packages</a>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand-block">
+          <img src="../assets/ai-marketplace.png" width="36" height="36" alt="">
+          <div>
+            <h1>AI Marketplace</h1>
+            <p>Codex packages for this workspace and your profile</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <span id="connection-status" class="status-pill" role="status">Connecting</span>
+          <button id="diagnose-button" class="button secondary" type="button">Diagnose</button>
+          <button id="refresh-button" class="button primary" type="button">Refresh</button>
+        </div>
+      </header>
+
+      <div id="offline-banner" class="banner warning hidden" role="status">
+        <strong>Catalog unavailable.</strong>
+        Installed packages remain available for local actions.
+      </div>
+      <div id="warning-banner" class="banner warning hidden" role="status"></div>
+
+      <nav class="tabs" role="tablist" aria-label="Marketplace views">
+        <button id="available-tab" class="tab active" type="button" role="tab" aria-selected="true" aria-controls="marketplace-panel" tabindex="0" data-view="available">
+          Available <span id="available-count" class="count">0</span>
+        </button>
+        <button id="installed-tab" class="tab" type="button" role="tab" aria-selected="false" aria-controls="marketplace-panel" tabindex="-1" data-view="installed">
+          Installed <span id="installed-count" class="count">0</span>
+        </button>
+        <button id="updates-tab" class="tab" type="button" role="tab" aria-selected="false" aria-controls="marketplace-panel" tabindex="-1" data-view="updates">
+          Auto Updates <span id="update-count" class="count">0</span>
+        </button>
+      </nav>
+
+      <main id="marketplace-panel" role="tabpanel" aria-labelledby="available-tab" tabindex="0">
+        <section class="toolbar" aria-label="Package filters">
+          <label class="search-field">
+            <span class="sr-only">Search packages</span>
+            <input id="search-filter" type="search" placeholder="Search packages, descriptions, and tags" autocomplete="off">
+          </label>
+          <div class="filter-grid">
+            <label>Type<select id="type-filter"><option value="">All types</option></select></label>
+            <label>Group<select id="group-filter"><option value="">All groups</option></select></label>
+            <label>Source<select id="source-filter"><option value="">All sources</option></select></label>
+            <label>Scope<select id="scope-filter"><option value="">All scopes</option><option value="workspace">Workspace</option><option value="global">Global</option></select></label>
+          </div>
+          <button id="group-install-button" class="button secondary hidden" type="button">Install group</button>
+          <button id="clear-filters" class="button ghost" type="button">Clear filters</button>
+        </section>
+
+        <section id="updates-panel" class="updates-panel hidden" aria-labelledby="updates-heading">
+          <div class="section-heading">
+            <div>
+              <h2 id="updates-heading">Automatic package management</h2>
+              <p>Review policy changes and synchronization plans before applying them.</p>
+            </div>
+            <button id="sync-button" class="button primary" type="button">Plan sync</button>
+          </div>
+          <div class="preference-grid">
+            <article class="preference-card">
+              <div>
+                <h3>Auto update</h3>
+                <p>Include eligible installed packages in synchronization plans.</p>
+              </div>
+              <label class="switch"><input id="auto-update-toggle" type="checkbox"><span>Enabled</span></label>
+            </article>
+            <article class="preference-card groups-card">
+              <div>
+                <h3>Automatic groups</h3>
+                <p>Select groups to include in global synchronization plans.</p>
+              </div>
+              <div id="automatic-groups" class="check-list"></div>
+            </article>
+          </div>
+          <div class="preference-actions">
+            <button id="save-preferences" class="button secondary" type="button">Review preference changes</button>
+          </div>
+          <article class="source-config-card" aria-labelledby="source-config-heading">
+            <div>
+              <h3 id="source-config-heading">Marketplace sources</h3>
+              <p>Add, update, or remove a repository through the same exact-plan review used for package changes.</p>
+            </div>
+            <div class="source-config-grid">
+              <label>Change
+                <select id="source-action">
+                  <option value="source-add">Add source</option>
+                  <option value="source-update">Update source</option>
+                  <option value="source-remove">Remove source</option>
+                </select>
+              </label>
+              <label>Source ID<input id="source-id" type="text" required autocomplete="off" placeholder="team-marketplace"></label>
+              <label class="wide-field">Repository URL<input id="source-url" type="url" autocomplete="off" placeholder="https://github.com/org/repository"></label>
+              <label>Provider<select id="source-provider"><option value="">Infer from URL</option><option value="github">GitHub</option><option value="azure-devops">Azure DevOps</option><option value="gitlab">GitLab</option></select></label>
+              <label>Label<input id="source-label" type="text" autocomplete="off" placeholder="Team marketplace"></label>
+              <label>Branch<input id="source-branch" type="text" autocomplete="off" placeholder="main"></label>
+              <label class="wide-field">Package folders (optional JSON)
+                <textarea id="source-folders" rows="3" spellcheck="false" placeholder='{"skill":"packages/skills"}'></textarea>
+              </label>
+              <label class="check-field"><input id="source-enabled" type="checkbox" checked> Enabled</label>
+              <label class="check-field"><input id="source-defaults" type="checkbox"> Allow default packages</label>
+            </div>
+            <div class="preference-actions">
+              <button id="review-source" class="button secondary" type="button">Review source changes</button>
+            </div>
+          </article>
+        </section>
+
+        <section id="bulk-toolbar" class="bulk-toolbar hidden" aria-live="polite">
+          <span><strong id="selected-count">0</strong> selected</span>
+          <div>
+            <button class="button secondary" type="button" data-bulk-action="install">Install</button>
+            <button class="button secondary" type="button" data-bulk-action="update">Update</button>
+            <button class="button secondary" type="button" data-bulk-action="migrate">Migrate</button>
+            <button class="button secondary" type="button" data-bulk-action="revert">Revert</button>
+            <button class="button secondary" type="button" data-bulk-action="hotload">Hotload</button>
+            <button class="button secondary" type="button" data-bulk-action="offload">Offload</button>
+            <button class="button danger" type="button" data-bulk-action="uninstall">Uninstall</button>
+            <button id="clear-selection" class="button ghost" type="button">Clear</button>
+          </div>
+        </section>
+
+        <div class="results-heading">
+          <div>
+            <h2 id="results-title">Available packages</h2>
+            <p id="results-summary">Loading marketplace…</p>
+          </div>
+          <label>Items per page
+            <select id="page-size"><option value="20">20</option><option value="50">50</option><option value="100">100</option></select>
+          </label>
+        </div>
+
+        <section id="package-results" class="package-grid" aria-busy="true" aria-live="polite"></section>
+        <div id="empty-state" class="empty-state hidden">
+          <h2>No packages found</h2>
+          <p>Try another view or clear one of the filters.</p>
+          <button class="button secondary" type="button" data-action="clear-filters">Clear filters</button>
+        </div>
+        <nav class="pagination" aria-label="Package results pages">
+          <button id="previous-page" class="button secondary" type="button">Previous</button>
+          <span id="page-status">Page 1 of 1</span>
+          <button id="next-page" class="button secondary" type="button">Next</button>
+        </nav>
+      </main>
+    </div>
+
+    <dialog id="details-dialog" class="drawer" aria-labelledby="details-title">
+      <div class="dialog-header">
+        <div><span class="eyebrow">Package details</span><h2 id="details-title">Package</h2></div>
+        <button class="icon-button" type="button" data-close-dialog="details-dialog" aria-label="Close package details">×</button>
+      </div>
+      <div id="details-content" class="dialog-content"></div>
+    </dialog>
+
+    <dialog id="plan-dialog" class="plan-dialog" aria-labelledby="plan-title">
+      <div class="dialog-header">
+        <div><span class="eyebrow">Review required</span><h2 id="plan-title">Review plan</h2></div>
+        <button class="icon-button" type="button" data-close-dialog="plan-dialog" aria-label="Close plan review">×</button>
+      </div>
+      <div id="plan-content" class="dialog-content"></div>
+      <div class="dialog-footer">
+        <button class="button secondary" type="button" data-close-dialog="plan-dialog">Cancel</button>
+        <button id="confirm-plan" class="button primary" type="button">Confirm and apply</button>
+      </div>
+    </dialog>
+
+    <dialog id="diagnostics-dialog" class="diagnostics-dialog" aria-labelledby="diagnostics-title">
+      <div class="dialog-header">
+        <h2 id="diagnostics-title">Marketplace diagnostics</h2>
+        <button class="icon-button" type="button" data-close-dialog="diagnostics-dialog" aria-label="Close diagnostics">×</button>
+      </div>
+      <div id="diagnostics-content" class="dialog-content"></div>
+    </dialog>
+
+    <div id="progress-region" class="progress-region hidden" role="status" aria-live="polite">
+      <div><strong id="progress-title">Applying plan</strong><span id="progress-message">Starting…</span></div>
+      <progress id="progress-bar" max="100"></progress>
+    </div>
+    <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="true"></div>
+  </body>
+</html>

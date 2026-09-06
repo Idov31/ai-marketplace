@@ -1,0 +1,234 @@
+{
+  "name": "ai-marketplace",
+  "displayName": "AI Marketplace",
+  "description": "Browse, install, update, migrate, revert, hotload, and offload AI Marketplace packages from GitHub, Azure DevOps, and GitLab repositories.",
+  "version": "1.0.0",
+  "publisher": "Idov31",
+  "license": "MIT",
+  "icon": "media/ai-marketplace.png",
+  "homepage": "https://github.com/Idov31/ai-marketplace#readme",
+  "bugs": {
+    "url": "https://github.com/Idov31/ai-marketplace/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Idov31/ai-marketplace"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "ai",
+    "codex",
+    "cursor",
+    "copilot",
+    "claude",
+    "skills",
+    "agents",
+    "mcp"
+  ],
+  "galleryBanner": {
+    "color": "#071A33",
+    "theme": "dark"
+  },
+  "activationEvents": [
+    "onStartupFinished",
+    "onCommand:aiMarketplace.open",
+    "onCommand:aiMarketplace.refresh",
+    "onCommand:aiMarketplace.diagnoseConnection",
+    "onCommand:aiMarketplace.setGitHubToken",
+    "onCommand:aiMarketplace.setRepositoryCredential",
+    "onCommand:aiMarketplace.installPackage",
+    "onCommand:aiMarketplace.installPackageByGroup",
+    "onCommand:aiMarketplace.configureAutoInstallGroups",
+    "onCommand:aiMarketplace.uninstallPackage",
+    "onCommand:aiMarketplace.updatePackage",
+    "onCommand:aiMarketplace.migratePackage",
+    "onCommand:aiMarketplace.revertPackage",
+    "onCommand:aiMarketplace.hotloadPackage",
+    "onCommand:aiMarketplace.offloadPackage",
+    "onView:aiMarketplace.marketplaceView"
+  ],
+  "main": "./out/extension.js",
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "node scripts/clean.mjs out && tsc -p ./ && node scripts/build.mjs && node scripts/prepare-package.mjs",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src test --ext ts",
+    "test": "npm run compile:test && node --test \"out-test/test/*.test.js\"",
+    "package": "vsce package --no-dependencies",
+    "compile:test": "node scripts/clean.mjs out-test && tsc -p ./tsconfig.test.json",
+    "test:vscode": "npm run compile && vscode-test"
+  },
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "aiMarketplace",
+          "title": "AI Marketplace",
+          "icon": "media/ai-marketplace-sidebar.svg"
+        }
+      ]
+    },
+    "views": {
+      "aiMarketplace": [
+        {
+          "id": "aiMarketplace.marketplaceView",
+          "name": "Marketplace",
+          "type": "webview"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "aiMarketplace.open",
+        "title": "AI Marketplace: Open",
+        "category": "AI Marketplace"
+      },
+      {
+        "command": "aiMarketplace.refresh",
+        "title": "AI Marketplace: Refresh",
+        "category": "AI Marketplace"
+      },
+      {
+        "command": "aiMarketplace.diagnoseConnection",
+        "title": "AI Marketplace: Diagnose Connection",
+        "category": "AI Marketplace"
+      },
+      {
+        "command": "aiMarketplace.setRepositoryCredential",
+        "title": "AI Marketplace: Set Repository Credential",
+        "category": "AI Marketplace"
+      },
+      {
+        "command": "aiMarketplace.installPackage",
+        "title": "AI Marketplace: Install Package",
+        "category": "AI Marketplace"
+      },
+      {
+        "command": "aiMarketplace.installPackageByGroup",
+        "title": "AI Marketplace: Install Package Group",
+        "category": "AI Marketplace"
+      },
+      {
+        "command": "aiMarketplace.configureAutoInstallGroups",
+        "title": "AI Marketplace: Configure Automatic Groups",
+        "category": "AI Marketplace"
+      },
+      {
+        "command": "aiMarketplace.uninstallPackage",
+        "title": "AI Marketplace: Uninstall Package",
+        "category": "AI Marketplace"
+      },
+      {
+        "command": "aiMarketplace.updatePackage",
+        "title": "AI Marketplace: Update Package",
+        "category": "AI Marketplace"
+      },
+      {
+        "command": "aiMarketplace.migratePackage",
+        "title": "AI Marketplace: Migrate Package",
+        "category": "AI Marketplace"
+      },
+      {
+        "command": "aiMarketplace.revertPackage",
+        "title": "AI Marketplace: Revert Package",
+        "category": "AI Marketplace"
+      },
+      {
+        "command": "aiMarketplace.hotloadPackage",
+        "title": "AI Marketplace: Hotload Package",
+        "category": "AI Marketplace"
+      },
+      {
+        "command": "aiMarketplace.offloadPackage",
+        "title": "AI Marketplace: Offload Package",
+        "category": "AI Marketplace"
+      }
+    ],
+    "configuration": {
+      "title": "AI Marketplace",
+      "properties": {
+        "aiMarketplace.repository": {
+          "type": "string",
+          "default": "https://github.com/Idov31/AI-Repository",
+          "description": "GitHub, Azure DevOps, or GitLab.com repository URL; GitHub also accepts owner/repo."
+        },
+        "aiMarketplace.branch": {
+          "type": "string",
+          "default": "main",
+          "description": "Repository branch to read."
+        },
+        "aiMarketplace.repositories": {
+          "type": "array",
+          "default": [],
+          "description": "AI Marketplace package repositories stored in User Settings by the Configuration tab. Each entry requires id and url; provider is optional for known hosts and required for self-managed GitLab. Other optional fields are label, branch, enabled, allowDefaultPackages, and packageFolders. An explicitly empty list disables catalog sources."
+        },
+        "aiMarketplace.autoUpdate": {
+          "type": "boolean",
+          "default": false,
+          "scope": "application",
+          "description": "Automatically update eligible packages after catalog refresh."
+        },
+        "aiMarketplace.autoInstallGroups": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true,
+          "default": [],
+          "scope": "application",
+          "description": "Package groups to install automatically into the user directory after catalog refresh."
+        },
+        "aiMarketplace.defaultPlatform": {
+          "type": "string",
+          "enum": [
+            "codex",
+            "cursor",
+            "github-copilot",
+            "claude"
+          ],
+          "default": "codex",
+          "description": "Default platform selected when installing packages."
+        },
+        "aiMarketplace.packageFolders": {
+          "type": "object",
+          "default": {
+            "skill": "Skills/",
+            "command": "Commands/",
+            "mcp": "Mcps/",
+            "agent": "Agents/",
+            "hook": "Hooks/",
+            "rule": "Rules/"
+          },
+          "description": "Repository folders that contain package folders by package type."
+        },
+        "aiMarketplace.platformPathOverrides": {
+          "type": "object",
+          "default": {},
+          "description": "Optional install path overrides. Keys are platform names, values map package types to workspace-relative folder paths."
+        }
+      }
+    }
+  },
+  "devDependencies": {
+    "@ai-marketplace/core": "1.0.0",
+    "@types/node": "^22.10.2",
+    "@types/vscode": "^1.90.0",
+    "@typescript-eslint/eslint-plugin": "^8.18.1",
+    "@typescript-eslint/parser": "^8.18.1",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/vsce": "^3.9.2",
+    "esbuild": "^0.28.1",
+    "eslint": "^9.17.0",
+    "typescript": "^5.7.2",
+    "yaml": "^2.9.0"
+  },
+  "overrides": {
+    "diff": "^8.0.3",
+    "serialize-javascript": "^7.0.5"
+  }
+}

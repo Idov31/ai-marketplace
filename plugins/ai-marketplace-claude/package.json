@@ -1,0 +1,26 @@
+{
+  "name": "@ai-marketplace/claude-plugin",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "ai-marketplace": "bin/ai-marketplace.cjs"
+  },
+  "scripts": {
+    "build": "node ../../scripts/build-claude-plugin.mjs",
+    "lint": "python ../../scripts/validate-claude-plugin.py --allow-missing-bundle",
+    "test": "npm run build && python ../../scripts/validate-claude-plugin.py",
+    "validate": "python ../../scripts/validate-claude-plugin.py"
+  },
+  "files": [
+    ".claude-plugin/",
+    "bin/",
+    "schemas/",
+    "skills/",
+    "LICENSE",
+    "PRIVACY.md",
+    "README.md",
+    "SUPPORT.md",
+    "TERMS.md"
+  ]
+}

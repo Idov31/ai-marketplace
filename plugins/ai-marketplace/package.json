@@ -1,0 +1,36 @@
+{
+  "name": "@ai-marketplace/codex-plugin",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "ai-marketplace": "bin/ai-marketplace.cjs"
+  },
+  "files": [
+    ".codex-plugin/",
+    "assets/",
+    "bin/",
+    "dashboard/",
+    "schemas/",
+    "skills/",
+    "LICENSE",
+    "PRIVACY.md",
+    "README.md",
+    "SUPPORT.md",
+    "TERMS.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/build.mjs",
+    "lint": "eslint src --ext ts",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "validate": "python3 ../../scripts/validate-codex-plugin.py"
+  },
+  "dependencies": {
+    "@ai-marketplace/core": "1.0.0",
+    "@ai-marketplace/node-cli": "1.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.1",
+    "typescript": "^5.7.2"
+  }
+}

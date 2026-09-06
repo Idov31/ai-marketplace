@@ -1,0 +1,20 @@
+{
+  "name": "ai-marketplace-dev",
+  "interface": {
+    "displayName": "AI Marketplace Development"
+  },
+  "plugins": [
+    {
+      "name": "ai-marketplace",
+      "source": {
+        "source": "local",
+        "path": "./plugins/ai-marketplace"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Engineering"
+    }
+  ]
+}
