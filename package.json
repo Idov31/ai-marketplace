@@ -33,7 +33,7 @@
     "@types/node": "^22.10.2",
     "@types/vscode": "^1.136.0",
     "@typescript-eslint/eslint-plugin": "^8.18.1",
-    "@typescript-eslint/parser": "^8.18.1",
+    "@typescript-eslint/parser": "^8.69.0",
     "@vscode/test-cli": "^0.0.12",
     "@vscode/vsce": "^3.9.2",
     "ajv": "^8.20.0",
