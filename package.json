@@ -37,7 +37,7 @@
     "@vscode/test-cli": "^0.0.12",
     "@vscode/vsce": "^3.9.2",
     "ajv": "^6.14.0",
-    "esbuild": "^0.28.1",
+    "esbuild": "^0.28.2",
     "eslint": "^9.17.0",
     "ovsx": "1.1.1",
     "typescript": "^5.7.2"
