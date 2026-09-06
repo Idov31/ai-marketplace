@@ -219,12 +219,12 @@
     "@types/node": "^26.4.1",
     "@types/vscode": "^1.136.0",
     "@typescript-eslint/eslint-plugin": "^8.69.0",
-    "@typescript-eslint/parser": "^8.18.1",
+    "@typescript-eslint/parser": "^8.69.0",
     "@vscode/test-cli": "^0.0.15",
     "@vscode/vsce": "^3.9.2",
     "esbuild": "^0.28.1",
-    "eslint": "^10.9.1",
-    "typescript": "^7.0.2",
+    "eslint": "^10.10.0",
+    "typescript": "^6.0.3",
     "yaml": "^2.9.0"
   },
   "overrides": {

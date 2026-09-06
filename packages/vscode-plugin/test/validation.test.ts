@@ -87,7 +87,7 @@ describe("canonical AI Marketplace manifest validation", () => {
     assert.equal(manifestFieldDisposition({ introducedIn: 1, deprecatedIn: 2, removedIn: 4, replacement: "new" }, 2, true), "prefer-replacement");
     const generated = createMarketplaceManifestJsonSchema() as Record<string, unknown>;
     const { $schema: _dialect, ...schema } = generated;
-    const validate = new Ajv({ allErrors: true, schemaId: "auto" }).compile(schema);
+    const validate = new Ajv({ allErrors: true, strict: false }).compile(schema);
     assert.equal(validate(canonicalManifest()), true, JSON.stringify(validate.errors));
     assert.equal(validate(canonicalManifest({ package: { ...canonicalManifest().package as object, version: "1.0.0-01" } })), false);
   });
