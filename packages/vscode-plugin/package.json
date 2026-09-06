@@ -216,7 +216,7 @@
   },
   "devDependencies": {
     "@ai-marketplace/core": "1.0.0",
-    "@types/node": "^22.10.2",
+    "@types/node": "^26.4.1",
     "@types/vscode": "^1.136.0",
     "@typescript-eslint/eslint-plugin": "^8.18.1",
     "@typescript-eslint/parser": "^8.18.1",
