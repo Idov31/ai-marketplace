@@ -8,7 +8,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "lint": "eslint src test --ext ts,mjs",
-    "test": "npm run build && node ../../scripts/build-claude-plugin.mjs && node --test test/*.test.mjs"
+    "test": "npm run build && npm run build -w @ai-marketplace/codex-plugin && node ../../scripts/build-claude-plugin.mjs && node --test test/*.test.mjs"
   },
   "dependencies": {
     "@ai-marketplace/core": "1.0.0"
