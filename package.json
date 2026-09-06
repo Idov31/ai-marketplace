@@ -40,7 +40,7 @@
     "esbuild": "^0.28.1",
     "eslint": "^10.9.1",
     "ovsx": "1.1.1",
-    "typescript": "^5.7.2"
+    "typescript": "^7.0.2"
   },
   "overrides": {
     "diff": "^8.0.3",
