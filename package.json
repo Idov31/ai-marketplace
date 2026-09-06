@@ -29,7 +29,7 @@
     "test:vscode": "npm run test:vscode -w ai-marketplace"
   },
   "devDependencies": {
-    "@anthropic-ai/claude-code": "2.1.246",
+    "@anthropic-ai/claude-code": "2.1.259",
     "@types/node": "^22.10.2",
     "@types/vscode": "^1.136.0",
     "@typescript-eslint/eslint-plugin": "^8.18.1",
