@@ -112,6 +112,8 @@ See the [Claude Code plugin guide](plugins/ai-marketplace-claude/README.md) for 
 
 ## Configure package repositories
 
+New installs start with no configured package repository. Add one from the VS Code Marketplace **Configuration** tab or configure `aiMarketplace.repositories` directly.
+
 In VS Code or Cursor, configure `aiMarketplace.repositories`:
 
 ```json

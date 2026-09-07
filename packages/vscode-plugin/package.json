@@ -154,8 +154,8 @@
       "properties": {
         "aiMarketplace.repository": {
           "type": "string",
-          "default": "https://github.com/Idov31/AI-Repository",
-          "description": "GitHub, Azure DevOps, or GitLab.com repository URL; GitHub also accepts owner/repo."
+          "default": "",
+          "description": "Optional legacy GitHub, Azure DevOps, or GitLab.com repository URL; GitHub also accepts owner/repo. Configure package sources in aiMarketplace.repositories instead."
         },
         "aiMarketplace.branch": {
           "type": "string",

@@ -75,7 +75,7 @@ export function activate(context: vscode.ExtensionContext): void {
       .catch((error) => log(`Unable to remove legacy workspace automation preferences: ${error instanceof Error ? error.message : String(error)}`));
   }
   void updateWebview();
-  if (tryReadMarketplaceConfig()) {
+  if (tryReadMarketplaceConfig()?.repositories?.length) {
     void refresh(context, false);
   }
   void showChangelogAfterUpdate(context);
@@ -87,7 +87,7 @@ export function deactivate(): void {
 
 async function openMarketplace(context: vscode.ExtensionContext): Promise<void> {
   webview?.revealPanel(await buildMarketplaceModel());
-  if (catalogCache.length === 0 && tryReadMarketplaceConfig()) {
+  if (catalogCache.length === 0 && tryReadMarketplaceConfig()?.repositories?.length) {
     await refresh(context, false);
   }
   webview?.revealPanel(await buildMarketplaceModel());

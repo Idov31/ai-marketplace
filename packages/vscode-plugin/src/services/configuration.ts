@@ -1,7 +1,6 @@
 import type * as vscode from "vscode";
 import { packageTypes, repositoryProviders, type PackageType, type MarketplaceConfig, type Platform, type PlatformPathOverrides, type RepositoryConfig, type RepositoryProvider } from "../types/packages";
 import { normalizeDefaultPlatform } from "./configurationValues";
-import { defaultGitHubRepositoryUrl } from "./githubUrl";
 import { normalizeGroupList, parseRepositoryUrl, repositoryIdentity, toRepositoryConfig } from "@ai-marketplace/core";
 import { ValidationError, isPackageType } from "./validation";
 
@@ -35,24 +34,23 @@ export interface UserMarketplaceDefaults {
   readonly platform: Platform;
 }
 
-export function readMarketplaceConfig(): MarketplaceConfig {
-  const config = getVscode().workspace.getConfiguration("aiMarketplace");
+export function readMarketplaceConfig(config = getVscode().workspace.getConfiguration("aiMarketplace")): MarketplaceConfig {
   const automation = readUserAutomationPreferences(config);
   const packageFolders = normalizePackageFolders(config.get<Record<string, unknown>>("packageFolders"));
   const repositoriesValue = explicitRepositorySetting(config);
-  const repositorySetting = config.get<string>("repository")?.trim() || defaultGitHubRepositoryUrl;
-  const parsedRepo = parseRepositoryUrl(repositorySetting);
-  if (!parsedRepo && repositoriesValue === undefined) {
+  const repositorySetting = config.get<string>("repository")?.trim();
+  const parsedRepo = repositorySetting ? parseRepositoryUrl(repositorySetting) : undefined;
+  if (repositorySetting && !parsedRepo && repositoriesValue === undefined) {
     throw new ValidationError("aiMarketplace.repository must be a supported GitHub, Azure DevOps, or GitLab.com repository value.");
   }
-  const legacy = legacyRepositoryConfig(parsedRepo ?? parseRepositoryUrl(defaultGitHubRepositoryUrl)!, config.get<string>("branch")?.trim() || "main", packageFolders);
-  const repositories = repositoriesValue === undefined ? [legacy] : normalizeRepositories(repositoriesValue, packageFolders);
-  const primary = repositories[0] ?? legacy;
+  const legacy = parsedRepo ? legacyRepositoryConfig(parsedRepo, normalizeDefaultBranch(config.get<string>("branch")), packageFolders) : undefined;
+  const repositories = repositoriesValue === undefined ? (legacy ? [legacy] : []) : normalizeRepositories(repositoriesValue, packageFolders);
+  const primary = repositories[0];
 
   return {
-    repository: repositoryIdentity(primary),
-    branch: primary.branch,
-    packageFolders: primary.packageFolders,
+    repository: primary ? repositoryIdentity(primary) : "",
+    branch: primary?.branch ?? normalizeDefaultBranch(config.get<string>("branch")),
+    packageFolders: primary?.packageFolders ?? packageFolders,
     repositories,
     platformPathOverrides: config.get<PlatformPathOverrides>("platformPathOverrides") ?? {},
     defaultPlatform: normalizeDefaultPlatform(config.get<string>("defaultPlatform")),
