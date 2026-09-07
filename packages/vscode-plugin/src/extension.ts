@@ -4,8 +4,8 @@ import * as path from "path";
 import { RepositoryClient } from "./services/repositoryClient";
 import { PackageInstaller } from "./services/packageInstaller";
 import {
-  readEditableRepositorySettings, readMarketplaceConfig, readUserAutomationPreferences, tryReadMarketplaceConfig,
-  writeUserAutoInstallGroups, writeUserAutoUpdate, writeUserRepositorySettings,
+  readEditableRepositorySettings, readMarketplaceConfig, readUserAutomationPreferences, readUserMarketplaceDefaults, tryReadMarketplaceConfig,
+  writeUserAutoInstallGroups, writeUserAutoUpdate, writeUserMarketplaceDefaults, writeUserRepositorySettings,
   type EditableRepositorySetting
 } from "./services/configuration";
 import { InstalledStateStore } from "./services/installedState";
@@ -44,6 +44,7 @@ export function activate(context: vscode.ExtensionContext): void {
     () => toggleGlobalAutoUpdate(context),
     () => installPackageByGroup(context),
     (groups) => setAutoInstallGroups(groups),
+    (defaults) => setMarketplaceDefaults(defaults),
     (originalId, repository) => saveRepository(context, originalId, repository),
     (repositoryId) => removeRepository(context, repositoryId)
   );
@@ -797,12 +798,14 @@ async function buildMarketplaceModel(): Promise<{
   readonly autoUpdateEnabled: boolean;
   readonly autoInstallGroups: readonly string[];
   readonly knownGroups: readonly string[];
+  readonly defaultBranch: string;
   readonly defaultPlatform: Platform;
   readonly extensionVersion: string;
   readonly repositories: readonly EditableRepositorySetting[];
 }> {
   const config = tryReadMarketplaceConfig();
   const automation = readUserAutomationPreferences();
+  const defaults = readUserMarketplaceDefaults();
   const installed: readonly InstalledPackage[] = await readAllInstalledPackages();
   return {
     packages: catalogCache,
@@ -811,7 +814,8 @@ async function buildMarketplaceModel(): Promise<{
     autoUpdateEnabled: automation.autoUpdateEnabled,
     autoInstallGroups: automation.autoInstallGroups,
     knownGroups: collectPackageGroups(catalogCache, installed),
-    defaultPlatform: config?.defaultPlatform ?? "codex",
+    defaultBranch: defaults.branch,
+    defaultPlatform: defaults.platform,
     extensionVersion,
     repositories: config ? readEditableRepositorySettings() : []
   };
@@ -1062,6 +1066,15 @@ async function setAutoInstallGroups(groups: readonly string[]): Promise<void> {
     await updateWebview();
   } catch (error) {
     await reportError("AI Marketplace failed to save auto-install groups", error);
+  }
+}
+
+async function setMarketplaceDefaults(defaults: Parameters<typeof writeUserMarketplaceDefaults>[0]): Promise<void> {
+  try {
+    await writeUserMarketplaceDefaults(defaults);
+    await updateWebview();
+  } catch (error) {
+    await reportError("AI Marketplace failed to save defaults", error);
   }
 }
 

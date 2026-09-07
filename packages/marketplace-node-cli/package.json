@@ -1,6 +1,6 @@
 {
   "name": "@ai-marketplace/node-cli",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "type": "module",
   "main": "src/index.ts",
@@ -11,7 +11,7 @@
     "test": "npm run build && npm run build -w @ai-marketplace/codex-plugin && node ../../scripts/build-claude-plugin.mjs && node --test test/*.test.mjs"
   },
   "dependencies": {
-    "@ai-marketplace/core": "1.0.0"
+    "@ai-marketplace/core": "1.0.1"
   },
   "devDependencies": {
     "@types/node": "^26.4.1",

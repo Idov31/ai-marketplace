@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { normalizeDefaultPlatform } from "../src/services/configurationValues";
-import { normalizeAutoInstallGroups, normalizePackageFolders, normalizeRepositories, readUserAutomationPreferences, repositoryOverrideTargets, selectExplicitRepositorySetting } from "../src/services/configuration";
+import { normalizeAutoInstallGroups, normalizeDefaultBranch, normalizePackageFolders, normalizeRepositories, readUserAutomationPreferences, repositoryOverrideTargets, selectExplicitRepositorySetting } from "../src/services/configuration";
 
 describe("configuration", () => {
+  it("normalizes and validates the default branch", () => {
+    assert.equal(normalizeDefaultBranch(undefined), "main");
+    assert.equal(normalizeDefaultBranch(" feature/test "), "feature/test");
+    assert.throws(() => normalizeDefaultBranch("../main"), /safe branch name/);
+  });
+
   it("defaults invalid default platform values to codex", () => {
     assert.equal(normalizeDefaultPlatform(undefined), "codex");
     assert.equal(normalizeDefaultPlatform("unknown"), "codex");
