@@ -48,8 +48,8 @@ def main() -> int:
     author = manifest.get("author")
     if not isinstance(author, dict) or not isinstance(author.get("name"), str) or not author["name"].strip():
         fail("author.name is required")
-    if manifest.get("license") != "MIT":
-        fail("plugin license must be MIT")
+    if manifest.get("license") != "GPL-3.0-only":
+        fail("plugin license must be GPL-3.0-only")
     if "mcpServers" in manifest or "apps" in manifest:
         fail("the public-ready v1 plugin must remain skills-only")
     skills = manifest.get("skills")

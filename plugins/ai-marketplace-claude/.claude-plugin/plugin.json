@@ -8,7 +8,7 @@
   },
   "homepage": "https://github.com/Idov31/ai-marketplace",
   "repository": "https://github.com/Idov31/ai-marketplace",
-  "license": "MIT",
+  "license": "GPL-3.0-only",
   "keywords": [
     "claude-code",
     "marketplace",

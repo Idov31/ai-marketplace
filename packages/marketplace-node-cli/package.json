@@ -2,6 +2,7 @@
   "name": "@ai-marketplace/node-cli",
   "version": "1.0.1",
   "private": true,
+  "license": "GPL-3.0-only",
   "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts",

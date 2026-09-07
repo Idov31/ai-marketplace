@@ -2,6 +2,7 @@
   "name": "@ai-marketplace/core",
   "version": "1.0.1",
   "private": true,
+  "license": "GPL-3.0-only",
   "main": "out/index.js",
   "types": "out/index.d.ts",
   "scripts": {

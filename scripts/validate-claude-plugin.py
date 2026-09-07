@@ -59,8 +59,8 @@ def main() -> int:
     if not SEMVER.fullmatch(version):
         fail("plugin.version must be strict semver")
     nonempty_string(manifest.get("description"), "plugin.description")
-    if manifest.get("license") != "MIT":
-        fail("plugin.license must be MIT")
+    if manifest.get("license") != "GPL-3.0-only":
+        fail("plugin.license must be GPL-3.0-only")
     author = manifest.get("author")
     if not isinstance(author, dict):
         fail("plugin.author must be an object")
