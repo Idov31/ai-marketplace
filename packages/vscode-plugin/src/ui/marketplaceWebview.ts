@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { toSerializableMarketplaceModel } from "../services/marketplaceModel";
 import { type InstallScope, type InstalledPackage, type MarketplaceAction, type MarketplacePackage, type Platform } from "../types/packages";
 import type { EditableRepositorySetting } from "../services/configuration";
-import { parseEditableRepository } from "./marketplaceMessages";
+import { parseEditableRepository, parseMarketplaceDefaults, type MarketplaceDefaultsMessage } from "./marketplaceMessages";
 
 export interface MarketplaceViewModel {
   readonly packages: readonly MarketplacePackage[];
@@ -11,6 +11,7 @@ export interface MarketplaceViewModel {
   readonly autoUpdateEnabled: boolean;
   readonly autoInstallGroups: readonly string[];
   readonly knownGroups: readonly string[];
+  readonly defaultBranch: string;
   readonly defaultPlatform: Platform;
   readonly extensionVersion: string;
   readonly repositories: readonly EditableRepositorySetting[];
@@ -34,6 +35,7 @@ interface WebviewMessage {
   readonly repository?: unknown;
   readonly originalId?: unknown;
   readonly repositoryId?: unknown;
+  readonly defaults?: unknown;
 }
 
 export interface PackageActionOptions {
@@ -63,6 +65,7 @@ export class MarketplaceWebview implements vscode.WebviewViewProvider {
     autoUpdateEnabled: false,
     autoInstallGroups: [],
     knownGroups: [],
+    defaultBranch: "main",
     defaultPlatform: "codex",
     extensionVersion: "0.0.0",
     repositories: []
@@ -77,6 +80,7 @@ export class MarketplaceWebview implements vscode.WebviewViewProvider {
     private readonly onToggleAutoUpdate: () => Promise<void>,
     private readonly onInstallByGroup: () => Promise<void>,
     private readonly onSetAutoInstallGroups: (groups: readonly string[]) => Promise<void>,
+    private readonly onSetDefaults: (defaults: MarketplaceDefaultsMessage) => Promise<void>,
     private readonly onSaveRepository: (originalId: string | undefined, repository: EditableRepositorySetting) => Promise<void>,
     private readonly onRemoveRepository: (repositoryId: string) => Promise<void>
   ) {}
@@ -152,6 +156,11 @@ export class MarketplaceWebview implements vscode.WebviewViewProvider {
     if (message.command === "setAutoInstallGroups" && Array.isArray(message.groups)) {
       const groups = message.groups.filter((group): group is string => typeof group === "string");
       if (groups.length === message.groups.length) await this.onSetAutoInstallGroups(groups);
+      return;
+    }
+    if (message.command === "setDefaults") {
+      const defaults = parseMarketplaceDefaults(message.defaults);
+      if (defaults) await this.onSetDefaults(defaults);
       return;
     }
     if (message.command === "saveRepository") {
@@ -554,6 +563,15 @@ function renderHtml(webview: vscode.Webview, nonce: string, model: MarketplaceVi
     </div>
     <section id="configurationSettings" class="configuration-settings" hidden aria-label="AI Marketplace configuration">
       <div class="configuration-section">
+        <h2>Defaults</h2>
+        <p>Choose the branch used by the default repository and the preferred platform for package installs.</p>
+        <div class="repository-form-grid">
+          <label class="filter-field">Default branch<input id="defaultBranch" type="text" required pattern="[A-Za-z0-9._/@-]+" value="${escapeHtmlText(model.defaultBranch)}"></label>
+          <label class="filter-field">Default platform<select id="defaultPlatform"><option value="codex">Codex</option><option value="cursor">Cursor</option><option value="github-copilot">GitHub Copilot</option><option value="claude">Claude</option></select></label>
+        </div>
+        <div class="actions"><button id="saveDefaults" type="button">Save defaults</button></div>
+      </div>
+      <div class="configuration-section">
         <h2>Package Auto Update</h2>
         <p>When enabled, catalog refresh applies package updates for workspace and user-directory installs that are not rollback-pinned.</p>
         <div class="actions"><button id="packageAutoUpdate" class="toggle" type="button">Auto update</button></div>
@@ -610,6 +628,9 @@ function renderHtml(webview: vscode.Webview, nonce: string, model: MarketplaceVi
     const availableTab = document.getElementById("availableTab");
     const installedTab = document.getElementById("installedTab");
     const configurationTab = document.getElementById("configurationTab");
+    const defaultBranch = document.getElementById("defaultBranch");
+    const defaultPlatform = document.getElementById("defaultPlatform");
+    defaultPlatform.value = model.defaultPlatform;
     const savedWebviewState = vscode.getState() || {};
     let activeTab = ["available", "installed", "configuration"].includes(savedWebviewState.activeTab) ? savedWebviewState.activeTab : "available";
     let editingRepositoryId;
@@ -625,6 +646,10 @@ function renderHtml(webview: vscode.Webview, nonce: string, model: MarketplaceVi
     packageAutoUpdate.textContent = model.autoUpdateEnabled ? "Auto update on" : "Auto update";
     packageAutoUpdate.classList.toggle("active", model.autoUpdateEnabled);
     packageAutoUpdate.addEventListener("click", () => vscode.postMessage({ command: "toggleAutoUpdate" }));
+    document.getElementById("saveDefaults").addEventListener("click", () => {
+      if (!defaultBranch.reportValidity()) return;
+      vscode.postMessage({ command: "setDefaults", defaults: { branch: defaultBranch.value, platform: defaultPlatform.value } });
+    });
     document.getElementById("installGroup").addEventListener("click", () => vscode.postMessage({ command: "installByGroup" }));
     document.getElementById("refresh").addEventListener("click", () => vscode.postMessage({ command: "refresh" }));
     document.getElementById("setRepositoryCredential").addEventListener("click", () => vscode.postMessage({ command: "setRepositoryCredential" }));
@@ -837,7 +862,7 @@ function renderHtml(webview: vscode.Webview, nonce: string, model: MarketplaceVi
       document.getElementById("repositoryLabel").value = repository?.label || "";
       document.getElementById("repositoryUrl").value = repository?.url || "";
       document.getElementById("repositoryProvider").value = repository?.provider || "";
-      document.getElementById("repositoryBranch").value = repository?.branch || "main";
+      document.getElementById("repositoryBranch").value = repository?.branch || model.defaultBranch;
       document.getElementById("repositoryEnabled").checked = repository ? repository.enabled : true;
       document.getElementById("repositoryAllowDefaults").checked = repository ? repository.allowDefaultPackages : false;
       for (const type of ["skill", "command", "mcp", "agent", "hook", "rule"]) {
@@ -1004,7 +1029,7 @@ function renderHtml(webview: vscode.Webview, nonce: string, model: MarketplaceVi
 }
 
 function toSerializableModel(model: MarketplaceViewModel): unknown {
-  return { ...toSerializableMarketplaceModel(model), repositories: model.repositories };
+  return { ...toSerializableMarketplaceModel(model), defaultBranch: model.defaultBranch, repositories: model.repositories };
 }
 
 function createNonce(): string {

@@ -1,7 +1,8 @@
 {
   "name": "@ai-marketplace/codex-plugin",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
+  "license": "GPL-3.0-only",
   "type": "module",
   "bin": {
     "ai-marketplace": "bin/ai-marketplace.cjs"
@@ -26,8 +27,8 @@
     "validate": "python3 ../../scripts/validate-codex-plugin.py"
   },
   "dependencies": {
-    "@ai-marketplace/core": "1.0.0",
-    "@ai-marketplace/node-cli": "1.0.0"
+    "@ai-marketplace/core": "1.0.1",
+    "@ai-marketplace/node-cli": "1.0.1"
   },
   "devDependencies": {
     "esbuild": "^0.28.1",

@@ -1,5 +1,17 @@
-import { packageTypes, repositoryProviders } from "../types/packages";
+import { packageTypes, repositoryProviders, type Platform } from "../types/packages";
 import type { EditableRepositorySetting } from "../services/configuration";
+
+export interface MarketplaceDefaultsMessage {
+  readonly branch: string;
+  readonly platform: Platform;
+}
+
+export function parseMarketplaceDefaults(value: unknown): MarketplaceDefaultsMessage | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+  const record = value as Record<string, unknown>;
+  if (typeof record.branch !== "string" || !isPlatform(record.platform)) return undefined;
+  return { branch: record.branch, platform: record.platform };
+}
 
 export function parseEditableRepository(value: unknown): EditableRepositorySetting | undefined {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
@@ -21,4 +33,8 @@ export function parseEditableRepository(value: unknown): EditableRepositorySetti
     allowDefaultPackages: record.allowDefaultPackages,
     packageFolders: Object.fromEntries(packageTypes.map((type) => [type, folderRecord[type] as string])) as unknown as EditableRepositorySetting["packageFolders"]
   };
+}
+
+function isPlatform(value: unknown): value is Platform {
+  return value === "codex" || value === "cursor" || value === "github-copilot" || value === "claude";
 }

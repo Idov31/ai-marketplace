@@ -1,7 +1,6 @@
 import type * as vscode from "vscode";
-import { packageTypes, repositoryProviders, type PackageType, type MarketplaceConfig, type PlatformPathOverrides, type RepositoryConfig, type RepositoryProvider } from "../types/packages";
+import { packageTypes, repositoryProviders, type PackageType, type MarketplaceConfig, type Platform, type PlatformPathOverrides, type RepositoryConfig, type RepositoryProvider } from "../types/packages";
 import { normalizeDefaultPlatform } from "./configurationValues";
-import { defaultGitHubRepositoryUrl } from "./githubUrl";
 import { normalizeGroupList, parseRepositoryUrl, repositoryIdentity, toRepositoryConfig } from "@ai-marketplace/core";
 import { ValidationError, isPackageType } from "./validation";
 
@@ -30,24 +29,28 @@ export interface UserAutomationPreferences {
   readonly autoInstallGroups: readonly string[];
 }
 
-export function readMarketplaceConfig(): MarketplaceConfig {
-  const config = getVscode().workspace.getConfiguration("aiMarketplace");
+export interface UserMarketplaceDefaults {
+  readonly branch: string;
+  readonly platform: Platform;
+}
+
+export function readMarketplaceConfig(config = getVscode().workspace.getConfiguration("aiMarketplace")): MarketplaceConfig {
   const automation = readUserAutomationPreferences(config);
   const packageFolders = normalizePackageFolders(config.get<Record<string, unknown>>("packageFolders"));
   const repositoriesValue = explicitRepositorySetting(config);
-  const repositorySetting = config.get<string>("repository")?.trim() || defaultGitHubRepositoryUrl;
-  const parsedRepo = parseRepositoryUrl(repositorySetting);
-  if (!parsedRepo && repositoriesValue === undefined) {
+  const repositorySetting = config.get<string>("repository")?.trim();
+  const parsedRepo = repositorySetting ? parseRepositoryUrl(repositorySetting) : undefined;
+  if (repositorySetting && !parsedRepo && repositoriesValue === undefined) {
     throw new ValidationError("aiMarketplace.repository must be a supported GitHub, Azure DevOps, or GitLab.com repository value.");
   }
-  const legacy = legacyRepositoryConfig(parsedRepo ?? parseRepositoryUrl(defaultGitHubRepositoryUrl)!, config.get<string>("branch")?.trim() || "main", packageFolders);
-  const repositories = repositoriesValue === undefined ? [legacy] : normalizeRepositories(repositoriesValue, packageFolders);
-  const primary = repositories[0] ?? legacy;
+  const legacy = parsedRepo ? legacyRepositoryConfig(parsedRepo, normalizeDefaultBranch(config.get<string>("branch")), packageFolders) : undefined;
+  const repositories = repositoriesValue === undefined ? (legacy ? [legacy] : []) : normalizeRepositories(repositoriesValue, packageFolders);
+  const primary = repositories[0];
 
   return {
-    repository: repositoryIdentity(primary),
-    branch: primary.branch,
-    packageFolders: primary.packageFolders,
+    repository: primary ? repositoryIdentity(primary) : "",
+    branch: primary?.branch ?? normalizeDefaultBranch(config.get<string>("branch")),
+    packageFolders: primary?.packageFolders ?? packageFolders,
     repositories,
     platformPathOverrides: config.get<PlatformPathOverrides>("platformPathOverrides") ?? {},
     defaultPlatform: normalizeDefaultPlatform(config.get<string>("defaultPlatform")),
@@ -59,6 +62,13 @@ export function readUserAutomationPreferences(config = getVscode().workspace.get
   return {
     autoUpdateEnabled: config.get<boolean>("autoUpdate") === true,
     autoInstallGroups: normalizeAutoInstallGroups(config.get<unknown>("autoInstallGroups"))
+  };
+}
+
+export function readUserMarketplaceDefaults(config = getVscode().workspace.getConfiguration("aiMarketplace")): UserMarketplaceDefaults {
+  return {
+    branch: normalizeDefaultBranch(config.get<string>("branch")),
+    platform: normalizeDefaultPlatform(config.get<string>("defaultPlatform"))
   };
 }
 
@@ -87,6 +97,20 @@ export async function writeUserAutoUpdate(enabled: boolean): Promise<void> {
 
 export async function writeUserAutoInstallGroups(groups: readonly string[]): Promise<void> {
   await getVscode().workspace.getConfiguration("aiMarketplace").update("autoInstallGroups", normalizeGroupList(groups), getVscode().ConfigurationTarget.Global);
+}
+
+export async function writeUserMarketplaceDefaults(defaults: UserMarketplaceDefaults): Promise<void> {
+  const config = getVscode().workspace.getConfiguration("aiMarketplace");
+  await config.update("branch", normalizeDefaultBranch(defaults.branch), getVscode().ConfigurationTarget.Global);
+  await config.update("defaultPlatform", normalizeDefaultPlatform(defaults.platform), getVscode().ConfigurationTarget.Global);
+}
+
+export function normalizeDefaultBranch(value: string | undefined): string {
+  const branch = value?.trim() || "main";
+  if (!/^[a-zA-Z0-9._/@-]+$/.test(branch) || branch.includes("..") || branch.includes("@{") || branch.startsWith("/")) {
+    throw new ValidationError("Default repository branch must be a safe branch name.");
+  }
+  return branch;
 }
 
 export function normalizeAutoInstallGroups(value: unknown): readonly string[] {

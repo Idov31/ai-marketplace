@@ -1,10 +1,16 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { parseEditableRepository } from "../src/ui/marketplaceMessages";
+import { parseEditableRepository, parseMarketplaceDefaults } from "../src/ui/marketplaceMessages";
 
 const folders = { skill: "Skills/", command: "Commands/", mcp: "Mcps/", agent: "Agents/", hook: "Hooks/", rule: "Rules/" };
 
 describe("marketplace configuration messages", () => {
+  it("accepts only typed marketplace defaults", () => {
+    assert.deepEqual(parseMarketplaceDefaults({ branch: "main", platform: "codex" }), { branch: "main", platform: "codex" });
+    assert.equal(parseMarketplaceDefaults({ branch: "main", platform: "unknown" }), undefined);
+    assert.equal(parseMarketplaceDefaults({ branch: 3, platform: "codex" }), undefined);
+  });
+
   it("accepts a complete repository draft", () => {
     assert.deepEqual(parseEditableRepository({
       id: "team", label: "Team", url: "https://github.com/example/team", provider: "",

@@ -1,7 +1,8 @@
 {
   "name": "ai-marketplace-workspace",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
+  "license": "GPL-3.0-only",
   "workspaces": [
     "packages/*",
     "plugins/ai-marketplace",
@@ -31,7 +32,7 @@
   "devDependencies": {
     "@anthropic-ai/claude-code": "2.1.259",
     "@types/node": "^22.10.2",
-    "@types/vscode": "^1.136.0",
+    "@types/vscode": "1.90.0",
     "@typescript-eslint/eslint-plugin": "^8.69.0",
     "@typescript-eslint/parser": "^8.69.0",
     "@vscode/test-cli": "^0.0.15",

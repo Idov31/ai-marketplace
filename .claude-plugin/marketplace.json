@@ -9,7 +9,7 @@
     {
       "name": "ai-marketplace",
       "description": "Browse and safely manage AI Marketplace packages for Claude Code.",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "source": "./plugins/ai-marketplace-claude",
       "category": "development"
     }

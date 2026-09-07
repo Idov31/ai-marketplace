@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { normalizeDefaultPlatform } from "../src/services/configurationValues";
-import { normalizeAutoInstallGroups, normalizePackageFolders, normalizeRepositories, readUserAutomationPreferences, repositoryOverrideTargets, selectExplicitRepositorySetting } from "../src/services/configuration";
+import { normalizeAutoInstallGroups, normalizeDefaultBranch, normalizePackageFolders, normalizeRepositories, readMarketplaceConfig, readUserAutomationPreferences, repositoryOverrideTargets, selectExplicitRepositorySetting } from "../src/services/configuration";
 
 describe("configuration", () => {
+  it("normalizes and validates the default branch", () => {
+    assert.equal(normalizeDefaultBranch(undefined), "main");
+    assert.equal(normalizeDefaultBranch(" feature/test "), "feature/test");
+    assert.throws(() => normalizeDefaultBranch("../main"), /safe branch name/);
+  });
+
   it("defaults invalid default platform values to codex", () => {
     assert.equal(normalizeDefaultPlatform(undefined), "codex");
     assert.equal(normalizeDefaultPlatform("unknown"), "codex");
@@ -24,6 +30,16 @@ describe("configuration", () => {
       autoUpdateEnabled: true,
       autoInstallGroups: ["alpha", "team"]
     });
+  });
+
+  it("starts without a catalog repository when no source is configured", () => {
+    const values: Record<string, unknown> = { repositories: [], repository: "", branch: "main", packageFolders: {}, platformPathOverrides: {}, defaultPlatform: "codex" };
+    const config = {
+      get: (key: string) => values[key],
+      inspect: () => undefined
+    };
+    assert.deepEqual(readMarketplaceConfig(config as never).repositories, []);
+    assert.equal(readMarketplaceConfig(config as never).repository, "");
   });
 
 });

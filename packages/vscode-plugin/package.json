@@ -2,9 +2,9 @@
   "name": "ai-marketplace",
   "displayName": "AI Marketplace",
   "description": "Browse, install, update, migrate, revert, hotload, and offload AI Marketplace packages from GitHub, Azure DevOps, and GitLab repositories.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "Idov31",
-  "license": "MIT",
+  "license": "GPL-3.0-only",
   "icon": "media/ai-marketplace.png",
   "homepage": "https://github.com/Idov31/ai-marketplace#readme",
   "bugs": {
@@ -154,8 +154,8 @@
       "properties": {
         "aiMarketplace.repository": {
           "type": "string",
-          "default": "https://github.com/Idov31/AI-Repository",
-          "description": "GitHub, Azure DevOps, or GitLab.com repository URL; GitHub also accepts owner/repo."
+          "default": "",
+          "description": "Optional legacy GitHub, Azure DevOps, or GitLab.com repository URL; GitHub also accepts owner/repo. Configure package sources in aiMarketplace.repositories instead."
         },
         "aiMarketplace.branch": {
           "type": "string",
@@ -215,9 +215,9 @@
     }
   },
   "devDependencies": {
-    "@ai-marketplace/core": "1.0.0",
+    "@ai-marketplace/core": "1.0.1",
     "@types/node": "^26.4.1",
-    "@types/vscode": "^1.136.0",
+    "@types/vscode": "1.90.0",
     "@typescript-eslint/eslint-plugin": "^8.69.0",
     "@typescript-eslint/parser": "^8.69.0",
     "@vscode/test-cli": "^0.0.15",
