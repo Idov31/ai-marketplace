@@ -224,7 +224,7 @@
     "@vscode/vsce": "^3.9.2",
     "esbuild": "^0.28.1",
     "eslint": "^10.10.0",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "yaml": "^2.9.0"
   },
   "overrides": {
