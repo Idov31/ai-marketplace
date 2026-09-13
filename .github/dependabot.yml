@@ -5,6 +5,12 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
+    ignore:
+      # TypeScript 7 is the native Go port and does not expose the compiler API
+      # required by typescript-eslint. Keep 8.x eligible for a future update.
+      - dependency-name: typescript
+        versions:
+          - ">=7.0.0 <8.0.0"
   - package-ecosystem: github-actions
     directory: /
     schedule:
