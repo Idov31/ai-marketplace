@@ -41,7 +41,7 @@
     "esbuild": "^0.28.1",
     "eslint": "^10.10.0",
     "ovsx": "1.1.1",
-    "typescript": "^7.0.2"
+    "typescript": "^6.0.3"
   },
   "overrides": {
     "diff": "^8.0.3",
