@@ -1,0 +1,90 @@
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <Version>1.1.0</Version>
+    <UseWPF>true</UseWPF>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <AssemblyName>AIMarketplace.VisualStudio</AssemblyName>
+    <TargetName>AIMarketplace.VisualStudio</TargetName>
+    <TargetVsixContainerName>AIMarketplace.VisualStudio.vsix</TargetVsixContainerName>
+    <RootNamespace>AIMarketplace.VisualStudio</RootNamespace>
+    <GeneratePkgDefFile>true</GeneratePkgDefFile>
+    <IncludeAssemblyInVSIXContainer>true</IncludeAssemblyInVSIXContainer>
+    <IncludeDebugSymbolsInVSIXContainer>false</IncludeDebugSymbolsInVSIXContainer>
+    <CopyBuildOutputToOutputDirectory>true</CopyBuildOutputToOutputDirectory>
+    <CreateVsixContainer>true</CreateVsixContainer>
+    <DeployExtension>false</DeployExtension>
+    <StartAction>Program</StartAction>
+    <StartProgram Condition="'$(DevEnvDir)' != ''">$(DevEnvDir)devenv.exe</StartProgram>
+    <StartArguments>/rootSuffix Exp</StartArguments>
+    <BaseIntermediateOutputPath>obj\</BaseIntermediateOutputPath>
+    <IntermediateOutputPath>$(BaseIntermediateOutputPath)$(Configuration)\</IntermediateOutputPath>
+    <OutputPath>bin\$(Configuration)\net472\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <CreatePkgDefAssemblyToProcess>$(MSBuildProjectDirectory)\$(OutputPath)$(TargetName).dll</CreatePkgDefAssemblyToProcess>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System.Design" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472" Version="1.0.3" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.VisualStudio.SDK" Version="17.14.40265" ExcludeAssets="runtime" />
+    <PackageReference Include="Microsoft.VSSDK.BuildTools" Version="17.14.2142" PrivateAssets="all" GeneratePathProperty="true" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4191.47" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+  <ItemGroup>
+    <VSCTCompile Include="Commands.vsct">
+      <ResourceName>Menus.ctmenu</ResourceName>
+    </VSCTCompile>
+    <Content Include="source.extension.vsixmanifest">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
+    <Content Include="..\..\..\..\plugins\ai-marketplace\assets\ai-marketplace.png">
+      <Link>Assets\ai-marketplace.png</Link>
+      <TargetPath>Assets\ai-marketplace.png</TargetPath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
+    <Content Include="..\..\..\..\LICENSE">
+      <Link>LICENSE.txt</Link>
+      <TargetPath>LICENSE.txt</TargetPath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
+    <Content Include="Runtime\**\*" Condition="Exists('Runtime')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
+    <Content Include="Sidecar\**\*" Condition="Exists('Sidecar')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
+    <Content Include="Dashboard\**\*" Condition="Exists('Dashboard')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
+    <Content Include="runtime-manifest.json" Condition="Exists('runtime-manifest.json')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
+    <Content Include="runtime-sbom.json" Condition="Exists('runtime-sbom.json')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
+    <Content Include="CHANGELOG.md" Condition="Exists('CHANGELOG.md')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="AIMarketplace.VisualStudio.Tests" />
+  </ItemGroup>
+  <Target Name="BuildVsixContainer" AfterTargets="Build" DependsOnTargets="GeneratePkgDef;CreateVsixContainer" Condition="'$(CreateVsixContainer)' == 'true'" />
+  <Target Name="CopyVisualStudioVsix" AfterTargets="BuildVsixContainer" Condition="'$(VisualStudioDistPath)' != ''">
+    <MakeDir Directories="$([System.IO.Path]::GetDirectoryName('$(VisualStudioDistPath)'))" />
+    <Copy SourceFiles="$(MSBuildProjectDirectory)\$(TargetVsixContainerName)" DestinationFiles="$(VisualStudioDistPath)" />
+  </Target>
+  <Import Project="$(PkgMicrosoft_VSSDK_BuildTools)\tools\VSSDK\Microsoft.VsSDK.targets" Condition="Exists('$(PkgMicrosoft_VSSDK_BuildTools)\tools\VSSDK\Microsoft.VsSDK.targets')" />
+</Project>

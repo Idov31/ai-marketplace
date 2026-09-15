@@ -16,7 +16,7 @@ import {
 } from "./services/marketplaceModel";
 import { collectPackageGroups } from "./services/groupInstall";
 
-export type DashboardScope = Extract<InstallScope, "workspace" | "global">;
+export type DashboardScope = InstallScope;
 export type DashboardTab = "available" | "installed" | "updates";
 export type DashboardRefreshState = "online" | "partial" | "offline";
 export type DashboardLifecycleAction = "install" | "update" | "migrate" | "revert" | "uninstall" | "hotload" | "offload";
@@ -87,7 +87,7 @@ export interface DashboardFingerprints {
 
 export interface DashboardModel {
   readonly schemaVersion: 1;
-  readonly platform: "codex";
+  readonly platform: Platform;
   readonly scopes: readonly DashboardScope[];
   readonly tab: DashboardTab;
   readonly configured: boolean;
@@ -111,6 +111,8 @@ export interface DashboardModelInput {
   readonly configured: boolean;
   readonly preferences: DashboardPreferences;
   readonly refresh: DashboardRefreshStatus;
+  readonly platform?: Platform;
+  readonly scopes?: readonly DashboardScope[];
   readonly query?: DashboardQuery;
 }
 
@@ -152,7 +154,7 @@ export interface DashboardPackagePlanItem {
   readonly qualifiedName: string;
   readonly sourceId: string;
   readonly action: DashboardLifecycleAction;
-  readonly platform: "codex";
+  readonly platform: Platform;
   readonly scope: DashboardScope;
   readonly version?: string;
   readonly targetVersion?: string;
@@ -220,8 +222,10 @@ export const dashboardMaximumPageSize = 100;
 
 export function buildDashboardModel(input: DashboardModelInput): DashboardModel {
   const query = normalizeDashboardQuery(input.query);
-  const catalog = input.catalog.filter(isCodexPackage);
-  const installed = input.installed.filter(isCodexInstallation);
+  const platform = input.platform ?? "codex";
+  const scopes = input.scopes ?? ["workspace", "global"];
+  const catalog = input.catalog.filter((pkg) => isDashboardPackage(pkg, platform, scopes));
+  const installed = input.installed.filter((item) => isDashboardInstallation(item, platform, scopes));
   const serialized = toSerializableMarketplaceModel({
     packages: catalog,
     installed,
@@ -229,13 +233,13 @@ export function buildDashboardModel(input: DashboardModelInput): DashboardModel 
     autoUpdateEnabled: input.preferences.autoUpdate,
     autoInstallGroups: input.preferences.autoInstallGroups,
     knownGroups: collectPackageGroups(catalog, installed),
-    defaultPlatform: "codex"
+    defaultPlatform: platform
   });
   const available = serialized.packages
-    .map((row): DashboardAvailableRow => ({ ...sanitizeAvailable(row), kind: "available" }))
+    .map((row): DashboardAvailableRow => ({ ...sanitizeAvailable(row, platform, scopes), kind: "available" }))
     .filter((row) => row.installOptions.length > 0);
   const installedRows = serialized.installed
-    .map((row): DashboardInstalledRow => ({ ...sanitizeInstalled(row), kind: "installed" }))
+    .map((row): DashboardInstalledRow => ({ ...sanitizeInstalled(row, platform, scopes), kind: "installed" }))
     .sort((left, right) => Number(right.updateAvailable) - Number(left.updateAvailable) || left.name.localeCompare(right.name));
   const allRows: readonly DashboardRow[] = query.tab === "available"
     ? available
@@ -244,11 +248,11 @@ export function buildDashboardModel(input: DashboardModelInput): DashboardModel 
   const totalPages = Math.max(1, Math.ceil(filtered.length / query.pageSize));
   const page = Math.min(query.page, totalPages);
   const start = (page - 1) * query.pageSize;
-  const fingerprints = dashboardFingerprints(catalog, installed, input.preferences);
+  const fingerprints = dashboardFingerprints(catalog, installed, input.preferences, platform, scopes);
   return {
     schemaVersion: 1,
-    platform: "codex",
-    scopes: ["workspace", "global"],
+    platform,
+    scopes,
     tab: query.tab,
     configured: input.configured,
     preferences: normalizePreferences(input.preferences),
@@ -294,16 +298,18 @@ export function buildDashboardDetail(input: DashboardModelInput, identity: strin
 export function dashboardFingerprints(
   catalog: readonly MarketplacePackage[],
   installed: readonly InstalledPackage[],
-  preferences: DashboardPreferences
+  preferences: DashboardPreferences,
+  platform: Platform = "codex",
+  scopes: readonly DashboardScope[] = ["workspace", "global"]
 ): DashboardFingerprints {
-  const catalogValue = catalog.filter(isCodexPackage).map((pkg) => ({
+  const catalogValue = catalog.filter((pkg) => isDashboardPackage(pkg, platform, scopes)).map((pkg) => ({
     identity: packageIdentity(pkg),
     version: pkg.manifest.version,
     revision: pkg.sourceRevision ?? "",
-    delivery: pkg.manifest.delivery.filter(isDashboardScope).sort(),
+    delivery: pkg.manifest.delivery.filter((scope) => scopes.includes(scope)).sort(),
     migrations: pkg.manifest.migrations ?? []
   })).sort(compareIdentity);
-  const stateValue = installed.filter(isCodexInstallation).map((item) => ({
+  const stateValue = installed.filter((item) => isDashboardInstallation(item, platform, scopes)).map((item) => ({
     identity: installedIdentity(item),
     scope: item.scope,
     version: item.version,
@@ -324,38 +330,38 @@ export function rowIdentity(row: DashboardRow): string {
   return `${row.sourceId ?? "legacy"}:${row.qualifiedName}`;
 }
 
-function sanitizeAvailable(row: SerializablePackage): SerializablePackage {
-  const installOptions = row.installOptions.filter(isCodexLocalAction);
-  const actions = sanitizeActions(row.primaryAction, row.moreActions);
-  return { ...row, platforms: ["codex"], installOptions, ...actions };
+function sanitizeAvailable(row: SerializablePackage, platform?: Platform, scopes?: readonly DashboardScope[]): SerializablePackage {
+  const selectedPlatform = platform ?? "codex";
+  const selectedScopes = scopes ?? ["workspace", "global"];
+  const installOptions = row.installOptions.filter((action) => isDashboardAction(action, selectedPlatform, selectedScopes));
+  const actions = sanitizeActions(row.primaryAction, row.moreActions, selectedPlatform, selectedScopes);
+  return { ...row, platforms: [selectedPlatform], installOptions, ...actions };
 }
 
-function sanitizeInstalled(row: SerializableInstalledPackage): SerializableInstalledPackage {
-  const installOptions = row.installOptions.filter(isCodexLocalAction);
-  return { ...row, installOptions, ...sanitizeActions(row.primaryAction, row.moreActions) };
+function sanitizeInstalled(row: SerializableInstalledPackage, platform?: Platform, scopes?: readonly DashboardScope[]): SerializableInstalledPackage {
+  const selectedPlatform = platform ?? "codex";
+  const selectedScopes = scopes ?? ["workspace", "global"];
+  const installOptions = row.installOptions.filter((action) => isDashboardAction(action, selectedPlatform, selectedScopes));
+  return { ...row, installOptions, ...sanitizeActions(row.primaryAction, row.moreActions, selectedPlatform, selectedScopes) };
 }
 
-function sanitizeActions(primary: CardAction | undefined, more: readonly CardAction[]): { readonly primaryAction?: CardAction; readonly moreActions: readonly CardAction[] } {
-  const eligiblePrimary = primary && isCodexLocalAction(primary) ? primary : undefined;
-  const eligibleMore = more.filter(isCodexLocalAction);
+function sanitizeActions(primary: CardAction | undefined, more: readonly CardAction[], platform: Platform, scopes: readonly DashboardScope[]): { readonly primaryAction?: CardAction; readonly moreActions: readonly CardAction[] } {
+  const eligiblePrimary = primary && isDashboardAction(primary, platform, scopes) ? primary : undefined;
+  const eligibleMore = more.filter((action) => isDashboardAction(action, platform, scopes));
   return { ...(eligiblePrimary ? { primaryAction: eligiblePrimary } : {}), moreActions: eligibleMore };
 }
 
-function isCodexLocalAction(action: { readonly platform?: Platform; readonly scope?: InstallScope }): boolean {
-  return (action.platform === undefined || action.platform === "codex")
-    && (action.scope === undefined || isDashboardScope(action.scope));
+function isDashboardAction(action: { readonly platform?: Platform; readonly scope?: InstallScope }, platform: Platform, scopes: readonly DashboardScope[]): boolean {
+  return (action.platform === undefined || action.platform === platform)
+    && (action.scope === undefined || scopes.includes(action.scope));
 }
 
-function isCodexPackage(pkg: MarketplacePackage): boolean {
-  return pkg.manifest.platforms.includes("codex") && pkg.manifest.delivery.some(isDashboardScope);
+function isDashboardPackage(pkg: MarketplacePackage, platform: Platform, scopes: readonly DashboardScope[]): boolean {
+  return pkg.manifest.platforms.includes(platform) && pkg.manifest.delivery.some((scope) => scopes.includes(scope));
 }
 
-function isCodexInstallation(item: InstalledPackage): item is InstalledPackage & { readonly scope: DashboardScope } {
-  return item.platform === "codex" && isDashboardScope(item.scope);
-}
-
-function isDashboardScope(scope: InstallScope): scope is DashboardScope {
-  return scope === "workspace" || scope === "global";
+function isDashboardInstallation(item: InstalledPackage, platform: Platform, scopes: readonly DashboardScope[]): item is InstalledPackage & { readonly scope: DashboardScope } {
+  return item.platform === platform && scopes.includes(item.scope);
 }
 
 function normalizeDashboardQuery(query: DashboardQuery | undefined): Required<Pick<DashboardQuery, "tab" | "page" | "pageSize">> & DashboardQuery {

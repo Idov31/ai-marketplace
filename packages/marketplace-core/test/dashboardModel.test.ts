@@ -38,6 +38,23 @@ describe("dashboard model", () => {
     assert.equal(detail?.row.id, "pkg-124");
   });
 
+  it("projects a host-selected platform and cloud scope without changing package target values", () => {
+    const input = {
+      catalog: [pkg("claude-local", ["claude"]), pkg("copilot-cloud", ["github-copilot"], ["cloud"]), pkg("codex-only", ["codex"])],
+      installed: [installed("copilot-cloud", "cloud", "github-copilot"), installed("codex-only", "workspace")],
+      configured: true,
+      preferences: { autoUpdate: false, autoInstallGroups: [] },
+      refresh: { state: "online" as const, warnings: [] },
+      platform: "github-copilot" as const,
+      scopes: ["cloud"] as const
+    };
+    const model = buildDashboardModel({ ...input, query: { tab: "installed" } });
+    assert.equal(model.platform, "github-copilot");
+    assert.deepEqual(model.scopes, ["cloud"]);
+    assert.deepEqual(model.rows.map((row) => row.id), ["copilot-cloud"]);
+    assert.equal(model.rows[0].kind === "installed" ? model.rows[0].scope : undefined, "cloud");
+  });
+
   it("filters update rows before pagination and resolves detail by kind and installed scope", () => {
     const current = pkg("current", ["codex"]);
     const updateA = { ...pkg("update-a", ["codex"]), manifest: { ...pkg("update-a", ["codex"]).manifest, version: "2.0.0" } };
@@ -82,6 +99,6 @@ function pkg(id: string, platforms: readonly Platform[], delivery: readonly ("wo
   };
 }
 
-function installed(id: string, scope: "workspace" | "global"): InstalledPackage {
-  return { id, type: "skill", platform: "codex", scope, version: "1.0.0", sourceRepo: "owner/repo", sourceBranch: "main", sourcePath: `Skills/${id}`, sourceId: "default", qualifiedName: `@team/${id}`, group: "team", installedPath: `.codex/skills/${id}`, installedAt: "2026-08-08T00:00:00.000Z", sourceRevision: "revision" };
+function installed(id: string, scope: "workspace" | "global" | "cloud", platform: Platform = "codex"): InstalledPackage {
+  return { id, type: scope === "cloud" ? "agent" : "skill", platform, scope, version: "1.0.0", sourceRepo: "owner/repo", sourceBranch: "main", sourcePath: `Skills/${id}`, sourceId: "default", qualifiedName: `@team/${id}`, group: "team", installedPath: scope === "cloud" ? `cloud/${platform}/agents/${id}` : `.codex/skills/${id}`, installedAt: "2026-08-08T00:00:00.000Z", sourceRevision: "revision" };
 }

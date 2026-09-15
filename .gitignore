@@ -9,3 +9,8 @@ dist/
 .project/
 docs/
 bin/
+packages/visualstudio-plugin/src/AIMarketplace.VisualStudio/Runtime/
+packages/visualstudio-plugin/src/AIMarketplace.VisualStudio/Sidecar/
+packages/visualstudio-plugin/src/AIMarketplace.VisualStudio/Dashboard/
+packages/visualstudio-plugin/src/AIMarketplace.VisualStudio/runtime-manifest.json
+packages/visualstudio-plugin/src/AIMarketplace.VisualStudio/runtime-sbom.json

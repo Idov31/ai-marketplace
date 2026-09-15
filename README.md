@@ -30,10 +30,13 @@ Packages can target these AI vendors:
 | --- | --- |
 | VS Code extension | Full marketplace interface for Codex, Cursor, GitHub Copilot, and Claude Code packages. |
 | Cursor | Runs the VS Code extension. |
+| Visual Studio 2022+ | Native VSIX with a WebView2 marketplace tool window and bundled x64/Arm64 runtime. |
 | Codex plugin | Dashboard and guided CLI for Codex packages. |
 | Claude Code plugin | Guided CLI skill for Claude Code packages. |
 
 The Codex and Claude plugins each manage only their own vendor's packages. VS Code and Cursor use the same extension.
+
+The Visual Studio extension supports Community, Professional, and Enterprise editions of Visual Studio on Windows x64 and Arm64. It uses the open solution or Open Folder directory for workspace operations; with no workspace, global operations remain available. Repository credentials are stored in Windows Credential Manager and are passed to the isolated sidecar only through authenticated host callbacks.
 
 ## Repository layout
 
@@ -42,6 +45,7 @@ packages/
   marketplace-core/       Shared catalog, validation, planning, and lifecycle engine
   marketplace-node-cli/   Shared CLI, storage, locking, and host adapters
   vscode-plugin/          VS Code and Cursor extension
+  visualstudio-plugin/    Visual Studio 2022+ VSIX
 plugins/
   ai-marketplace/         Codex plugin
   ai-marketplace-claude/  Claude Code plugin
@@ -77,6 +81,12 @@ After the first public release:
 - Cursor: install the same extension from [Open VSX](https://open-vsx.org/extension/Idov31/ai-marketplace) through Cursor's Extensions view.
 
 VS Code and Cursor use their native extension update mechanisms. For local development, build `dist/ai-marketplace-<version>.vsix` with `npm.cmd run package:vscode` and use **Extensions: Install from VSIX...**.
+
+### Install in Visual Studio
+
+On Windows, run `powershell -File scripts/download-visualstudio-runtimes.ps1` once, then `npm.cmd run package:visualstudio`. Close Visual Studio and open `dist/ai-marketplace-visualstudio-<version>.vsix` to install it. The extension appears under **View > Other Windows > AI Marketplace**; its commands and settings are also under **Tools > AI Marketplace** and **Tools > Options > AI Marketplace**.
+
+The development artifact is unsigned. Publisher signing and public Visual Studio Marketplace publication are intentionally deferred. A WebView2 Runtime is required by Visual Studio.
 
 ### Install the Codex plugin
 
@@ -173,6 +183,7 @@ See the generated [manifest schema](schemas/ai_marketplace.schema.json) for ever
 npm.cmd run package:vscode
 npm.cmd run package:codex
 npm.cmd run package:claude
+npm.cmd run package:visualstudio
 npm.cmd run package
 ```
 

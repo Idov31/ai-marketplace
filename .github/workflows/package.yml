@@ -6,6 +6,7 @@ on:
       - "vscode-v*"
       - "codex-v*"
       - "claude-v*"
+      - "visualstudio-v*"
 
 permissions:
   contents: read

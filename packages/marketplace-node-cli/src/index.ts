@@ -21,3 +21,14 @@ export {
 export { NodeMcpScriptRunner } from "./mcpScriptRunner.js";
 export { NodeMarketplaceStorage, SecurityError, withOperationLock } from "./nodeStorage.js";
 export { createEnvironmentCredentialProvider, credentialSourceSummary, redactCredentials, isRepositoryCredentialEnvironmentKey } from "./credentials.js";
+export {
+  HostProtocolConnection,
+  SecretRedactor,
+  createHostCredentialProvider,
+  hostProtocolVersion,
+  maximumHostFrameBytes,
+  validateInitializeRequest,
+  type HostInitializeRequest,
+  type HostProtocolError,
+  type HostRequestHandler
+} from "./hostProtocol.js";

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
+  <Metadata>
+    <Identity Id="AIMarketplace.VisualStudio.1f90619f-0241-45fc-9752-6223816b05e8" Version="1.1.0" Language="en-US" Publisher="AI Marketplace" />
+    <DisplayName>AI Marketplace</DisplayName>
+    <Description xml:space="preserve">Browse and manage AI Marketplace packages for Codex, Cursor, GitHub Copilot, and Claude.</Description>
+    <MoreInfo>https://github.com/iveltzman/ai-marketplace</MoreInfo>
+    <License>LICENSE.txt</License>
+    <Icon>Assets\ai-marketplace.png</Icon>
+    <Tags>AI,Codex,Cursor,Copilot,Claude,packages</Tags>
+  </Metadata>
+  <Installation InstalledByMsi="false" AllUsers="false">
+    <InstallationTarget Id="Microsoft.VisualStudio.Community" Version="[17.0,18.0)"><ProductArchitecture>amd64</ProductArchitecture></InstallationTarget>
+    <InstallationTarget Id="Microsoft.VisualStudio.Community" Version="[17.0,18.0)"><ProductArchitecture>arm64</ProductArchitecture></InstallationTarget>
+    <InstallationTarget Id="Microsoft.VisualStudio.Pro" Version="[17.0,18.0)"><ProductArchitecture>amd64</ProductArchitecture></InstallationTarget>
+    <InstallationTarget Id="Microsoft.VisualStudio.Pro" Version="[17.0,18.0)"><ProductArchitecture>arm64</ProductArchitecture></InstallationTarget>
+    <InstallationTarget Id="Microsoft.VisualStudio.Enterprise" Version="[17.0,18.0)"><ProductArchitecture>amd64</ProductArchitecture></InstallationTarget>
+    <InstallationTarget Id="Microsoft.VisualStudio.Enterprise" Version="[17.0,18.0)"><ProductArchitecture>arm64</ProductArchitecture></InstallationTarget>
+  </Installation>
+  <Dependencies>
+    <Dependency Id="Microsoft.Framework.NDP" DisplayName="Microsoft .NET Framework" Version="[4.7.2,)" />
+  </Dependencies>
+  <Prerequisites>
+    <Prerequisite Id="Microsoft.VisualStudio.Component.CoreEditor" Version="[17.0,18.0)" DisplayName="Visual Studio core editor" />
+  </Prerequisites>
+  <Assets>
+    <Asset Type="Microsoft.VisualStudio.VsPackage" d:Source="Project" d:ProjectName="%CurrentProject%" Path="|%CurrentProject%;PkgdefProjectOutputGroup|" />
+  </Assets>
+</PackageManifest>

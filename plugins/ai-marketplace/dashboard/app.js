@@ -131,7 +131,7 @@ async function loadModel(options = {}) {
 }
 
 function assertDashboardModel(model) {
-  if (model?.schemaVersion !== 1 || model.platform !== "codex" || model.tab !== state.view || !Array.isArray(model.rows)) {
+  if (model?.schemaVersion !== 1 || !["codex", "cursor", "github-copilot", "claude"].includes(model.platform) || model.tab !== state.view || !Array.isArray(model.rows)) {
     throw new Error("Server returned an unsupported dashboard model.");
   }
 }
@@ -787,7 +787,7 @@ function planVersionLabel(item) {
   return `${item.version ?? "current"} → ${item.targetVersion ?? "latest"}`;
 }
 function reviewValue(value) { return value === undefined ? "not set" : JSON.stringify(value); }
-function scopeLabel(value) { return value === "global" ? "User profile" : value === "workspace" ? "Workspace" : String(value ?? ""); }
+function scopeLabel(value) { return value === "global" ? "User profile" : value === "workspace" ? "Workspace" : value === "cloud" ? "Cloud" : String(value ?? ""); }
 function labelForAction(action = "") {
   return ({
     install: "Install", update: "Update", revert: "Revert", uninstall: "Uninstall", hotload: "Hotload",

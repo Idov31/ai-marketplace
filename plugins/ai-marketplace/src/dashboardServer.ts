@@ -19,6 +19,8 @@ export interface DashboardServerOptions {
   readonly now?: () => Date;
   readonly idleTimeoutMs?: number;
   readonly idleCheckIntervalMs?: number;
+  readonly persistDescriptor?: boolean;
+  readonly sanitizeError?: (value: string) => string;
 }
 
 export interface DashboardDescriptor {
@@ -60,7 +62,7 @@ export function startDashboardServer(options: DashboardServerOptions): Promise<D
   const key = resolve(options.workspace);
   const existing = servers.get(key);
   if (existing) return existing;
-  const started = options.storage.validateRoots().then(() => connectExistingServer(options, key)).then((existingHandle) => existingHandle ?? createDashboardServer(options, key)).catch((error) => { servers.delete(key); throw error; });
+  const started = options.storage.validateRoots().then(() => options.persistDescriptor === false ? undefined : connectExistingServer(options, key)).then((existingHandle) => existingHandle ?? createDashboardServer(options, key)).catch((error) => { servers.delete(key); throw error; });
   servers.set(key, started);
   return started;
 }
@@ -77,6 +79,7 @@ async function createDashboardServer(options: DashboardServerOptions, registryKe
   let sequence = 0;
   let closed = false;
   let lastClientActivity = Date.now();
+  let hasAuthenticatedClient = false;
 
   const publish = (event: DashboardEvent | { readonly event: "heartbeat"; readonly data: { readonly timestamp: string } }): void => {
     sequence += 1;
@@ -84,7 +87,7 @@ async function createDashboardServer(options: DashboardServerOptions, registryKe
     for (const response of eventClients) response.write(payload);
   };
   const unsubscribe = options.application.subscribe(publish);
-  const server = createServer((request, response) => void route(request, response).catch((error) => sendError(response, error)));
+  const server = createServer((request, response) => void route(request, response).catch((error) => sendError(response, error, options.sanitizeError)));
 
   await new Promise<void>((resolveListen, reject) => {
     server.once("error", reject);
@@ -100,6 +103,7 @@ async function createDashboardServer(options: DashboardServerOptions, registryKe
   expectedHost = `127.0.0.1:${port}`;
 
   const writeDescriptor = async (launchUrl: string): Promise<void> => {
+    if (options.persistDescriptor === false) return;
     const descriptor: DashboardDescriptor = { schemaVersion: 1, pid: process.pid, port, origin, launchUrl, controlToken, startedAt };
     await options.storage.writeFileAtomic("workspace", descriptorPath, Buffer.from(`${JSON.stringify(descriptor, null, 2)}\n`, "utf8"));
   };
@@ -140,6 +144,8 @@ async function createDashboardServer(options: DashboardServerOptions, registryKe
       const sessionId = randomBytes(32).toString("base64url");
       const csrfToken = randomBytes(32).toString("base64url");
       sessions.set(sessionId, { csrfToken, expiresAt: nowMs() + sessionLifetimeMs });
+      hasAuthenticatedClient = true;
+      lastClientActivity = Date.now();
       response.setHeader("Set-Cookie", `${cookieName}=${sessionId}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${Math.floor(sessionLifetimeMs / 1000)}`);
       await writeDescriptor(origin);
       return sendJson(response, 200, { csrfToken });
@@ -198,25 +204,27 @@ async function createDashboardServer(options: DashboardServerOptions, registryKe
     response.end(asset.body);
   }
 
-  const heartbeat = setInterval(() => publish({ event: "heartbeat", data: { timestamp: new Date(nowMs()).toISOString() } }), 25_000);
-  heartbeat.unref();
-  const idleTimeoutMs = options.idleTimeoutMs ?? defaultIdleTimeoutMs;
-  const idleCheck = setInterval(() => { if (Date.now() - lastClientActivity >= idleTimeoutMs) void shutdown(); }, options.idleCheckIntervalMs ?? Math.min(60_000, Math.max(250, Math.floor(idleTimeoutMs / 4))));
-  idleCheck.unref();
-  const launchUrl = await issueLaunchUrl();
+  let heartbeat: NodeJS.Timeout | undefined;
+  let idleCheck: NodeJS.Timeout | undefined;
   const shutdown = async (): Promise<void> => {
     if (closed) return;
     closed = true;
-    clearInterval(heartbeat);
-    clearInterval(idleCheck);
+    if (heartbeat) clearInterval(heartbeat);
+    if (idleCheck) clearInterval(idleCheck);
     unsubscribe();
     eventClients.forEach((response) => response.end());
     eventClients.clear();
     sessions.clear();
     await new Promise<void>((resolveClose, reject) => server.close((error) => error ? reject(error) : resolveClose()));
-    await options.storage.remove("workspace", descriptorPath);
+    if (options.persistDescriptor !== false) await options.storage.remove("workspace", descriptorPath);
     servers.delete(registryKey);
   };
+  heartbeat = setInterval(() => publish({ event: "heartbeat", data: { timestamp: new Date(nowMs()).toISOString() } }), 25_000);
+  heartbeat.unref();
+  const idleTimeoutMs = options.idleTimeoutMs ?? defaultIdleTimeoutMs;
+  idleCheck = setInterval(() => { if (hasAuthenticatedClient && Date.now() - lastClientActivity >= idleTimeoutMs) void shutdown(); }, options.idleCheckIntervalMs ?? Math.min(60_000, Math.max(250, Math.floor(idleTimeoutMs / 4))));
+  idleCheck.unref();
+  const launchUrl = await issueLaunchUrl();
   const handle: DashboardServerHandle = {
     origin,
     port,
@@ -393,12 +401,12 @@ function sendJson(response: ServerResponse, status: number, value: unknown): voi
   response.end(`${JSON.stringify(value)}\n`);
 }
 
-function sendError(response: ServerResponse, error: unknown): void {
+function sendError(response: ServerResponse, error: unknown, sanitize?: (value: string) => string): void {
   const status = error instanceof DashboardApplicationError
     ? error.code === "NOT_FOUND" ? 404 : error.code === "STALE_PLAN" || error.code === "EXPIRED_PLAN" ? 409 : 422
     : error instanceof DashboardRequestError ? 400 : 500;
   const code = error instanceof DashboardApplicationError || error instanceof DashboardRequestError ? error.code : "INTERNAL";
-  const message = code === "INTERNAL" ? "The dashboard request failed unexpectedly." : redactSensitive(safeMessage(error));
+  const message = code === "INTERNAL" ? "The dashboard request failed unexpectedly." : (sanitize ?? redactSensitive)(safeMessage(error));
   sendJson(response, status, { error: { code, message } });
 }
 

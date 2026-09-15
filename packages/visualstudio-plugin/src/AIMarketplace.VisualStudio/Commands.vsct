@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CommandTable xmlns="http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable">
+  <Extern href="stdidcmd.h" />
+  <Extern href="vsshlids.h" />
+  <Commands package="guidMarketplacePackage">
+    <Groups><Group guid="guidMarketplaceCommandSet" id="MarketplaceGroup" priority="0x0600"><Parent guid="guidSHLMainMenu" id="IDM_VS_MENU_TOOLS" /></Group></Groups>
+    <Buttons>
+      <Button guid="guidMarketplaceCommandSet" id="OpenCommand" priority="0x0100" type="Button"><Parent guid="guidMarketplaceCommandSet" id="MarketplaceGroup" /><Strings><ButtonText>Open AI Marketplace</ButtonText></Strings></Button>
+      <Button guid="guidMarketplaceCommandSet" id="RefreshCommand" priority="0x0110" type="Button"><Parent guid="guidMarketplaceCommandSet" id="MarketplaceGroup" /><Strings><ButtonText>Refresh AI Marketplace</ButtonText></Strings></Button>
+      <Button guid="guidMarketplaceCommandSet" id="DiagnoseCommand" priority="0x0120" type="Button"><Parent guid="guidMarketplaceCommandSet" id="MarketplaceGroup" /><Strings><ButtonText>Diagnose AI Marketplace</ButtonText></Strings></Button>
+      <Button guid="guidMarketplaceCommandSet" id="CredentialsCommand" priority="0x0130" type="Button"><Parent guid="guidMarketplaceCommandSet" id="MarketplaceGroup" /><Strings><ButtonText>Save Repository Credential...</ButtonText></Strings></Button>
+      <Button guid="guidMarketplaceCommandSet" id="OptionsCommand" priority="0x0140" type="Button"><Parent guid="guidMarketplaceCommandSet" id="MarketplaceGroup" /><Strings><ButtonText>AI Marketplace Settings...</ButtonText></Strings></Button>
+    </Buttons>
+  </Commands>
+  <Symbols>
+    <GuidSymbol name="guidMarketplacePackage" value="{1F90619F-0241-45FC-9752-6223816B05E8}" />
+    <GuidSymbol name="guidMarketplaceCommandSet" value="{52935F43-9F95-4865-B696-62A6A25D9873}">
+      <IDSymbol name="MarketplaceGroup" value="0x1020" />
+      <IDSymbol name="OpenCommand" value="0x0100" />
+      <IDSymbol name="RefreshCommand" value="0x0101" />
+      <IDSymbol name="DiagnoseCommand" value="0x0102" />
+      <IDSymbol name="CredentialsCommand" value="0x0103" />
+      <IDSymbol name="OptionsCommand" value="0x0104" />
+    </GuidSymbol>
+  </Symbols>
+</CommandTable>

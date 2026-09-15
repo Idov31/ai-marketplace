@@ -1,6 +1,6 @@
 {
   "name": "@ai-marketplace/codex-plugin",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "license": "GPL-3.0-only",
   "type": "module",
@@ -23,12 +23,12 @@
   "scripts": {
     "build": "tsc -p tsconfig.json && node scripts/build.mjs",
     "lint": "eslint src --ext ts",
-    "test": "npm run build && node --test test/*.test.mjs",
+    "test": "npm run build && node --test --test-concurrency=1 test/*.test.mjs",
     "validate": "python3 ../../scripts/validate-codex-plugin.py"
   },
   "dependencies": {
-    "@ai-marketplace/core": "1.0.1",
-    "@ai-marketplace/node-cli": "1.0.1"
+    "@ai-marketplace/core": "1.0.2",
+    "@ai-marketplace/node-cli": "1.0.2"
   },
   "devDependencies": {
     "esbuild": "^0.28.1",

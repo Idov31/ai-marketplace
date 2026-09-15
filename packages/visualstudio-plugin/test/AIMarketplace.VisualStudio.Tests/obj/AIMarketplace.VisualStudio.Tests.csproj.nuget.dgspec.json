@@ -1,0 +1,148 @@
+{
+  "format": 1,
+  "restore": {
+    "C:\\Users\\iveltzman\\Projects\\ai-marketplace\\packages\\visualstudio-plugin\\test\\AIMarketplace.VisualStudio.Tests\\AIMarketplace.VisualStudio.Tests.csproj": {}
+  },
+  "projects": {
+    "C:\\Users\\iveltzman\\Projects\\ai-marketplace\\packages\\visualstudio-plugin\\src\\AIMarketplace.VisualStudio\\AIMarketplace.VisualStudio.csproj": {
+      "version": "1.1.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\iveltzman\\Projects\\ai-marketplace\\packages\\visualstudio-plugin\\src\\AIMarketplace.VisualStudio\\AIMarketplace.VisualStudio.csproj",
+        "projectName": "AIMarketplace.VisualStudio",
+        "projectPath": "C:\\Users\\iveltzman\\Projects\\ai-marketplace\\packages\\visualstudio-plugin\\src\\AIMarketplace.VisualStudio\\AIMarketplace.VisualStudio.csproj",
+        "packagesPath": "C:\\Users\\iveltzman\\Projects\\ai-marketplace\\.project\\nuget-packages",
+        "outputPath": "C:\\Users\\iveltzman\\Projects\\ai-marketplace\\packages\\visualstudio-plugin\\src\\AIMarketplace.VisualStudio\\obj\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\iveltzman\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net472"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {}
+        },
+        "frameworks": {
+          "net472": {
+            "targetAlias": "net472",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net472": {
+          "targetAlias": "net472",
+          "dependencies": {
+            "Microsoft.NETFramework.ReferenceAssemblies.net472": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[1.0.3, )"
+            },
+            "Microsoft.VSSDK.BuildTools": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[17.14.2142, )",
+              "generatePathProperty": true
+            },
+            "Microsoft.VisualStudio.SDK": {
+              "include": "Compile, Build, Native, ContentFiles, Analyzers, BuildTransitive",
+              "target": "Package",
+              "version": "[17.14.40265, )"
+            },
+            "Microsoft.Web.WebView2": {
+              "target": "Package",
+              "version": "[1.0.4191.47, )"
+            },
+            "Newtonsoft.Json": {
+              "target": "Package",
+              "version": "[13.0.3, )"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.316\\RuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "C:\\Users\\iveltzman\\Projects\\ai-marketplace\\packages\\visualstudio-plugin\\test\\AIMarketplace.VisualStudio.Tests\\AIMarketplace.VisualStudio.Tests.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\iveltzman\\Projects\\ai-marketplace\\packages\\visualstudio-plugin\\test\\AIMarketplace.VisualStudio.Tests\\AIMarketplace.VisualStudio.Tests.csproj",
+        "projectName": "AIMarketplace.VisualStudio.Tests",
+        "projectPath": "C:\\Users\\iveltzman\\Projects\\ai-marketplace\\packages\\visualstudio-plugin\\test\\AIMarketplace.VisualStudio.Tests\\AIMarketplace.VisualStudio.Tests.csproj",
+        "packagesPath": "C:\\Users\\iveltzman\\Projects\\ai-marketplace\\.project\\nuget-packages",
+        "outputPath": "C:\\Users\\iveltzman\\Projects\\ai-marketplace\\packages\\visualstudio-plugin\\test\\AIMarketplace.VisualStudio.Tests\\obj\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\iveltzman\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net472"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {}
+        },
+        "frameworks": {
+          "net472": {
+            "targetAlias": "net472",
+            "projectReferences": {
+              "C:\\Users\\iveltzman\\Projects\\ai-marketplace\\packages\\visualstudio-plugin\\src\\AIMarketplace.VisualStudio\\AIMarketplace.VisualStudio.csproj": {
+                "projectPath": "C:\\Users\\iveltzman\\Projects\\ai-marketplace\\packages\\visualstudio-plugin\\src\\AIMarketplace.VisualStudio\\AIMarketplace.VisualStudio.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net472": {
+          "targetAlias": "net472",
+          "dependencies": {
+            "Microsoft.NETFramework.ReferenceAssemblies.net472": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[1.0.3, )"
+            },
+            "Newtonsoft.Json": {
+              "target": "Package",
+              "version": "[13.0.3, )"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.316\\RuntimeIdentifierGraph.json"
+        }
+      },
+      "runtimes": {
+        "win-x86": {
+          "#import": []
+        }
+      }
+    }
+  }
+}

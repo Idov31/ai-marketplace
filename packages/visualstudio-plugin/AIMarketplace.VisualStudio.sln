@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.37516.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AIMarketplace.VisualStudio", "src\AIMarketplace.VisualStudio\AIMarketplace.VisualStudio.csproj", "{92799710-CFD4-41B8-A147-DCBBECF7657E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AIMarketplace.VisualStudio.Tests", "test\AIMarketplace.VisualStudio.Tests\AIMarketplace.VisualStudio.Tests.csproj", "{CF525A4A-4D1D-42B7-BC84-040606C3D8E6}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{92799710-CFD4-41B8-A147-DCBBECF7657E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{92799710-CFD4-41B8-A147-DCBBECF7657E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{92799710-CFD4-41B8-A147-DCBBECF7657E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{92799710-CFD4-41B8-A147-DCBBECF7657E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CF525A4A-4D1D-42B7-BC84-040606C3D8E6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CF525A4A-4D1D-42B7-BC84-040606C3D8E6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CF525A4A-4D1D-42B7-BC84-040606C3D8E6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CF525A4A-4D1D-42B7-BC84-040606C3D8E6}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
