@@ -31,7 +31,7 @@
   },
   "devDependencies": {
     "@anthropic-ai/claude-code": "2.1.274",
-    "@types/node": "^26.5.1",
+    "@types/node": "^26.6.1",
     "@types/vscode": "1.138.0",
     "@typescript-eslint/eslint-plugin": "^8.70.0",
     "@typescript-eslint/parser": "^8.69.0",
