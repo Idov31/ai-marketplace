@@ -8,6 +8,8 @@ export interface MarketplaceStorage {
   replaceDirectory(scope: InstallScope, relativePath: string, files: readonly PackageFile[]): Promise<void>;
   move(scope: InstallScope, fromRelativePath: string, toRelativePath: string): Promise<void>;
   remove(scope: InstallScope, relativePath: string): Promise<void>;
+  /** Enumerate managed payload files, rejecting symlinks, for exact ownership checks. */
+  listFiles?(scope: InstallScope, relativePath: string): Promise<readonly string[]>;
 }
 
 export interface MarketplaceConfigProvider {
@@ -43,6 +45,13 @@ export interface McpScriptRequest {
 /** Host adapter for executing a validated Python script without a shell. */
 export interface McpScriptRunner {
   run(request: McpScriptRequest): Promise<void>;
+}
+
+/** Host-owned bridge to the Harness profile package manager. */
+export interface HarnessProfileManager {
+  ensureBridge(profile: string): Promise<void>;
+  add(profile: string, bundleName: string, payloadRelativePath: string): Promise<void>;
+  remove(profile: string, bundleName: string, payloadRelativePath: string): Promise<void>;
 }
 
 export interface Clock {

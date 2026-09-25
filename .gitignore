@@ -3,6 +3,8 @@ out/
 out-test/
 *.vsix
 dist/
+!plugins/ai-marketplace-harness/dist/
+!plugins/ai-marketplace-harness/dist/**
 .DS_Store
 .codex/
 .ai_marketplace/

@@ -1,4 +1,6 @@
 /CHANGELOG.md
 /README.md
-/media/
+/media/*
+!/media/dsh-bridge/
+!/media/dsh-bridge/**
 /schemas/

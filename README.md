@@ -12,6 +12,7 @@ Packages can target these AI vendors:
 | Cursor | `.cursor/` and `~/.cursor/` |
 | GitHub Copilot | `.github/` and `~/.copilot/` |
 | Claude Code | `.claude/` and `~/.claude.json` |
+| DeepSeek Harness | `.dsh/` skills and rules, plus selected profile bundles |
 
 ## Supported package types
 
@@ -28,12 +29,21 @@ Packages can target these AI vendors:
 
 | Platform | Purpose |
 | --- | --- |
-| VS Code extension | Full marketplace interface for Codex, Cursor, GitHub Copilot, and Claude Code packages. |
+| VS Code extension | Full marketplace interface for Codex, Cursor, GitHub Copilot, Claude Code, and DeepSeek Harness packages. |
 | Cursor | Runs the VS Code extension. |
 | Codex plugin | Dashboard and guided CLI for Codex packages. |
 | Claude Code plugin | Guided CLI skill for Claude Code packages. |
+| DeepSeek Harness bundle | Native right Sidebar page and authenticated Host API for Harness packages. |
 
 The Codex and Claude plugins each manage only their own vendor's packages. VS Code and Cursor use the same extension.
+
+### DeepSeek Harness packages
+
+The integration targets DeepSeek Harness `0.1.5-rc.3`. Select a named profile in `aiMarketplace.deepseekHarnessProfile` in VS Code. The extension finds a matching local `npx` installation automatically; `aiMarketplace.deepseekHarnessCliPath` can point to `dsh` or its `lib/bin.js` when installed elsewhere. Set `DSH_HOME` before launching VS Code if Harness uses a custom home.
+
+Harness skills use `SKILL.md` under workspace `.dsh/skills/<id>/` or `$DSH_HOME/skills/<id>/`. Rules use `RULE.md` under `.dsh/rules/<id>/` and a Marketplace-owned profile adapter that reads only active rules assigned to that profile. It leaves `AGENTS.md` untouched. Commands, MCP, agents, and hooks use global delivery through `dsh plugin --profile <name> add`; each package must ship a prebuilt Harness `package.json`, `cordis.patch.yml`, and its referenced modules. The installer does not translate another vendor's format. Harness cloud delivery is unsupported.
+
+For a native Harness page, build with `npm.cmd run build:harness`, then add [the Harness bundle](plugins/ai-marketplace-harness/README.md) to the selected profile. The Marketplace page appears in the Web UI right Sidebar guide. Repository sources for that page are configured in `~/.ai_marketplace/deepseek-harness.json`; credentials come from the same provider environment variables as the Codex and Claude CLIs.
 
 ## Repository layout
 

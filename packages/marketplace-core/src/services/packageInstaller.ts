@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { type ManagedConfigContribution, type McpScriptAction, type PackageFile, type InstalledPackage, type MarketplacePackage, type MarketplaceConfig, type Platform, type InstallScope, type PackageMigrationSnapshot } from "../types/packages";
 import { cloudInstallPath, codexAgentConfigRelativePath, installRelativePath, mcpPayloadRelativePath, offloadRelativePath, safeJoinRelative } from "./pathPlanning";
-import { type MarketplaceStorage, type McpScriptRunner } from "../ports";
+import { type HarnessProfileManager, type MarketplaceStorage, type McpScriptRunner } from "../ports";
 import { uninstallTargetPaths } from "./installPlanning";
 import { InstalledStateStore } from "./installedState";
 import { filterPackageFilesForPlatform } from "./packageFiles";
@@ -21,13 +21,15 @@ import {
 import { assertMcpPackageScripts, mcpInstallScript, mcpScriptTimeoutMs, mcpUninstallScript } from "./mcpScripts";
 import { repositoryIdentity } from "./repositoryUrl";
 import { isRootManifestFile } from "./manifestSchema";
+import { validateHarnessBundle } from "./harnessBundle";
 
 export class PackageInstaller {
   public constructor(
     private readonly storage: MarketplaceStorage,
     private readonly config: MarketplaceConfig,
     private readonly fetchFiles: (pkg: MarketplacePackage) => Promise<readonly PackageFile[]>,
-    private readonly mcpScriptRunner?: McpScriptRunner
+    private readonly mcpScriptRunner?: McpScriptRunner,
+    private readonly harnessProfileManager?: HarnessProfileManager
   ) {}
 
   public async listInstalled(): Promise<readonly InstalledPackage[]> {
@@ -39,6 +41,16 @@ export class PackageInstaller {
   }
 
   public async install(pkg: MarketplacePackage, platform: Platform, scope: InstallScope): Promise<InstalledPackage> {
+    if (platform === "deepseek-harness") {
+      this.assertHarnessDelivery(pkg, scope);
+      if (pkg.manifest.type !== "skill" && pkg.manifest.type !== "rule") return this.installHarnessBundle(pkg);
+      const files = await this.fetchFiles(pkg);
+      this.assertHarnessDocument(pkg, files);
+      if (pkg.manifest.type === "rule") {
+        if (!this.harnessProfileManager) throw new Error("This host cannot activate DeepSeek Harness rules.");
+        await this.harnessProfileManager.ensureBridge(this.config.deepseekHarnessProfile ?? "web");
+      }
+    }
     if (pkg.manifest.type === "mcp") {
       return this.installMcp(pkg, platform, "install");
     }
@@ -68,6 +80,7 @@ export class PackageInstaller {
       sourcePath: pkg.sourcePath,
       ...sourceMetadata(pkg),
       ...(managedConfig === undefined ? {} : { managedConfig }),
+      ...(platform === "deepseek-harness" && pkg.manifest.type === "rule" ? { harnessProfile: this.config.deepseekHarnessProfile ?? "web" } : {}),
       installedPath: installPath,
       installedAt: new Date().toISOString()
     };
@@ -80,6 +93,10 @@ export class PackageInstaller {
   }
 
   public async updateInstalled(pkg: MarketplacePackage, installed: InstalledPackage): Promise<InstalledPackage> {
+    if (installed.harnessBundle) {
+      this.assertHarnessBundleSource(pkg, installed);
+      return this.installHarnessBundle(pkg, installed);
+    }
     if (pkg.manifest.type === "mcp") {
       return this.installMcp(pkg, installed.platform, "update", installed.installedAt, installed, true, (updated) => ({
         ...updated,
@@ -104,6 +121,10 @@ export class PackageInstaller {
   public async revertInstalled(pkg: MarketplacePackage, installed: InstalledPackage, expectedRevision: string): Promise<InstalledPackage> {
     if (pkg.sourceRevision === undefined || pkg.sourceRevision !== expectedRevision) {
       throw new Error("Rollback snapshot revision does not match the current manifest previous_version.");
+    }
+    if (installed.harnessBundle) {
+      this.assertHarnessBundleSource(pkg, installed);
+      return this.installHarnessBundle(pkg, installed, true);
     }
     this.assertCompatibleRollback(pkg, installed);
     if (pkg.manifest.type === "mcp") {
@@ -136,6 +157,7 @@ export class PackageInstaller {
       || !pkg.manifest.delivery.includes(predecessor.scope) || compareVersions(pkg.manifest.version, predecessor.version) < 0) {
       throw new Error("Destination package is not compatible with the selected predecessor installation.");
     }
+    if (predecessor.harnessBundle) return this.migrateHarnessBundle(pkg, predecessor);
     if (predecessor.platform === "codex" && predecessor.type === "agent") {
       throw new Error("Codex agent identity migrations are not yet supported; uninstall the predecessor before installing the destination.");
     }
@@ -219,6 +241,10 @@ export class PackageInstaller {
     } else {
       if (installed.scope !== "cloud") {
         const files = filterPackageFilesForPlatform(await this.fetchFiles(pkg), installed.platform);
+        if (installed.platform === "deepseek-harness" && (installed.type === "skill" || installed.type === "rule")) {
+          this.assertHarnessDocument(pkg, files);
+          if (installed.type === "rule") await this.harnessProfileManager?.ensureBridge(installed.harnessProfile ?? "web");
+        }
         const managedConfig = codexAgentContribution(pkg, installed.platform, files, this.config);
         await this.assertCodexAgentConfigAvailable(pkg, installed.scope, installed.installedPath, managedConfig, installed);
         await this.replacePackage(installed.scope, installed.installedPath, files, pkg, installed.platform);
@@ -246,6 +272,10 @@ export class PackageInstaller {
   }
 
   public async uninstall(installed: InstalledPackage): Promise<void> {
+    if (installed.harnessBundle) {
+      await this.uninstallHarnessBundle(installed);
+      return;
+    }
     if (installed.type === "mcp") {
       await this.uninstallMcp(installed);
       return;
@@ -264,6 +294,7 @@ export class PackageInstaller {
   }
 
   public async offload(installed: InstalledPackage): Promise<InstalledPackage> {
+    if (installed.harnessBundle) return this.offloadHarnessBundle(installed);
     if (installed.scope === "cloud") {
       throw new Error("Cloud packages cannot be offloaded.");
     }
@@ -290,11 +321,16 @@ export class PackageInstaller {
   }
 
   public async hotload(installed: InstalledPackage): Promise<InstalledPackage> {
+    if (installed.harnessBundle) return this.hotloadHarnessBundle(installed);
     if (installed.scope === "cloud") {
       throw new Error("Cloud packages cannot be hotloaded.");
     }
     if (installed.type === "mcp") {
       throw new Error("MCP packages cannot be hotloaded.");
+    }
+    if (installed.platform === "deepseek-harness" && installed.type === "rule") {
+      if (!this.harnessProfileManager) throw new Error("This host cannot activate DeepSeek Harness rules.");
+      await this.harnessProfileManager.ensureBridge(installed.harnessProfile ?? "web");
     }
     if (installed.type === "hook" && installed.platform === "claude") {
       await this.restoreClaudeHookContribution(installed);
@@ -316,6 +352,233 @@ export class PackageInstaller {
     };
     await this.stateStore(installed.scope).upsert(moved);
     return moved;
+  }
+
+  private assertHarnessDelivery(pkg: MarketplacePackage, scope: InstallScope): void {
+    if (!pkg.manifest.platforms.includes("deepseek-harness") || !pkg.manifest.delivery.includes(scope) || scope === "cloud") {
+      throw new Error(`DeepSeek Harness package '${pkg.manifest.id}' does not support ${scope} delivery.`);
+    }
+    if (scope === "workspace" && pkg.manifest.type !== "skill" && pkg.manifest.type !== "rule") {
+      throw new Error(`DeepSeek Harness ${pkg.manifest.type} packages require global profile delivery.`);
+    }
+  }
+
+  private assertHarnessDocument(pkg: MarketplacePackage, files: readonly PackageFile[]): void {
+    const entry = files.find((file) => file.relativePath === pkg.manifest.entrypoint);
+    if (!entry || !pkg.manifest.entrypoint.toLowerCase().endsWith(".md")) {
+      throw new Error(`DeepSeek Harness ${pkg.manifest.type} package '${pkg.manifest.id}' requires a Markdown entrypoint.`);
+    }
+    if (pkg.manifest.type === "skill" && pkg.manifest.entrypoint !== "SKILL.md") {
+      throw new Error(`DeepSeek Harness skill '${pkg.manifest.id}' must use SKILL.md as its entrypoint.`);
+    }
+    if (pkg.manifest.type === "rule" && pkg.manifest.entrypoint !== "RULE.md") {
+      throw new Error(`DeepSeek Harness rule '${pkg.manifest.id}' must use RULE.md as its entrypoint.`);
+    }
+  }
+
+  private assertHarnessBundleSource(pkg: MarketplacePackage, installed: InstalledPackage): void {
+    if (installed.platform !== "deepseek-harness" || installed.scope !== "global"
+      || pkg.source.id !== installed.sourceId || pkg.manifest.qualifiedName !== installed.qualifiedName
+      || pkg.manifest.id !== installed.id || pkg.manifest.type !== installed.type
+      || sourceRepository(pkg) !== installed.sourceRepo || pkg.source.branch !== installed.sourceBranch
+      || pkg.sourcePath !== installed.sourcePath || !isCanonicalInstalledPath(installed, this.config)) {
+      throw new Error("DeepSeek Harness bundle source or installed path does not match Marketplace ownership.");
+    }
+  }
+
+  private async migrateHarnessBundle(pkg: MarketplacePackage, predecessor: InstalledPackage): Promise<InstalledPackage> {
+    this.assertHarnessDelivery(pkg, "global");
+    if (!this.harnessProfileManager || !predecessor.harnessBundle || !isCanonicalInstalledPath(predecessor, this.config)) {
+      throw new Error("DeepSeek Harness bundle migration requires a valid owned profile installation.");
+    }
+    await this.assertHarnessBundleUnmodified(predecessor);
+    const files = filterPackageFilesForPlatform(await this.fetchFiles(pkg), "deepseek-harness").filter((file) => !isRootManifestFile(file.relativePath));
+    const bundle = validateHarnessBundle(pkg, files);
+    const offloaded = isOffloaded(predecessor);
+    const targetPath = offloaded ? offloadRelativePath("deepseek-harness", pkg.manifest.type, pkg.manifest.id)
+      : installRelativePath("deepseek-harness", pkg.manifest.type, pkg.manifest.id, this.config.platformPathOverrides);
+    await this.assertMigrationDestinationAvailable(pkg, predecessor, targetPath);
+    const profile = predecessor.harnessBundle.profile;
+    const backupPath = `${predecessor.installedPath}.backup-${randomUUID()}`;
+    await this.storage.move("global", predecessor.installedPath, backupPath);
+    let removed = false;
+    let added = false;
+    try {
+      if (!offloaded) {
+        await this.harnessProfileManager.remove(profile, predecessor.harnessBundle.name, predecessor.installedPath);
+        removed = true;
+      }
+      await this.replaceDirectory("global", targetPath, files);
+      if (!offloaded) {
+        await this.harnessProfileManager.add(profile, bundle.name, targetPath);
+        added = true;
+      }
+      const migrated: InstalledPackage = {
+        ...predecessor,
+        id: pkg.manifest.id, type: pkg.manifest.type, version: pkg.manifest.version,
+        sourceRepo: sourceRepository(pkg), sourceBranch: pkg.source.branch, sourcePath: pkg.sourcePath,
+        ...sourceMetadata(pkg), installedPath: targetPath,
+        harnessBundle: { profile, name: bundle.name, contentSha256: bundle.contentSha256,
+          files: files.map((file) => ({ path: file.relativePath, sha256: sha256(file.content) })) },
+        migrationHistory: [...(predecessor.migrationHistory ?? []), {
+          migratedAt: new Date().toISOString(), from: migrationSnapshot(predecessor), to: migrationSnapshotForPackage(pkg)
+        }]
+      };
+      await this.stateStore("global").replace(predecessor, migrated);
+      await this.storage.remove("global", backupPath).catch(() => undefined);
+      return migrated;
+    } catch (error) {
+      if (added) await this.harnessProfileManager.remove(profile, bundle.name, targetPath).catch(() => undefined);
+      await this.storage.remove("global", targetPath).catch(() => undefined);
+      await this.storage.move("global", backupPath, predecessor.installedPath).catch(() => undefined);
+      if (removed) await this.harnessProfileManager.add(profile, predecessor.harnessBundle.name, predecessor.installedPath).catch(() => undefined);
+      throw error;
+    }
+  }
+
+  private async installHarnessBundle(pkg: MarketplacePackage, previous?: InstalledPackage, revert = false): Promise<InstalledPackage> {
+    this.assertHarnessDelivery(pkg, "global");
+    const manager = this.harnessProfileManager;
+    if (!manager) throw new Error("This host cannot manage DeepSeek Harness profiles.");
+    if (previous) await this.assertHarnessBundleUnmodified(previous);
+    const files = filterPackageFilesForPlatform(await this.fetchFiles(pkg), "deepseek-harness").filter((file) => !isRootManifestFile(file.relativePath));
+    const bundle = validateHarnessBundle(pkg, files);
+    const profile = previous?.harnessBundle?.profile ?? this.config.deepseekHarnessProfile ?? "web";
+    if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/.test(profile)) throw new Error("Invalid DeepSeek Harness profile name.");
+    const activePath = installRelativePath("deepseek-harness", pkg.manifest.type, pkg.manifest.id, this.config.platformPathOverrides);
+    const targetPath = previous?.installedPath.startsWith(".offload/")
+      ? offloadRelativePath("deepseek-harness", pkg.manifest.type, pkg.manifest.id) : activePath;
+    await this.assertNoInstallCollision(pkg, "deepseek-harness", "global", targetPath);
+    const allInstalled = await this.listInstalled();
+    if (allInstalled.some((item) => !(previous && item.id === previous.id && item.sourceId === previous.sourceId
+      && item.platform === previous.platform && item.scope === previous.scope)
+      && item.harnessBundle?.profile === profile && item.harnessBundle.name === bundle.name)) {
+      throw new Error(`DeepSeek Harness bundle '${bundle.name}' is already owned by another Marketplace package.`);
+    }
+    if (!previous && await this.storage.exists("global", targetPath)) {
+      throw new Error(`DeepSeek Harness bundle path '${targetPath}' exists without Marketplace ownership.`);
+    }
+    const backupPath = `${targetPath}.backup-${randomUUID()}`;
+    const hadPrevious = previous !== undefined && await this.storage.exists("global", targetPath);
+    if (hadPrevious) await this.storage.move("global", targetPath, backupPath);
+    let added = false;
+    try {
+      await this.replaceDirectory("global", targetPath, files);
+      if (!targetPath.startsWith(".offload/")) {
+        if (previous?.harnessBundle && previous.harnessBundle.name !== bundle.name) {
+          await manager.remove(profile, previous.harnessBundle.name, targetPath);
+        }
+        await manager.add(profile, bundle.name, targetPath);
+        added = true;
+      }
+      const installed: InstalledPackage = {
+        id: pkg.manifest.id, type: pkg.manifest.type, platform: "deepseek-harness", scope: "global",
+        version: pkg.manifest.version, sourceRepo: sourceRepository(pkg), sourceBranch: pkg.source.branch,
+        sourcePath: pkg.sourcePath, ...sourceMetadata(pkg), installedPath: targetPath,
+        installedAt: previous?.installedAt ?? new Date().toISOString(),
+        harnessBundle: {
+          profile, name: bundle.name, contentSha256: bundle.contentSha256,
+          files: files.map((file) => ({ path: file.relativePath, sha256: sha256(file.content) }))
+        },
+        ...(previous?.hotloaded === undefined ? {} : { hotloaded: previous.hotloaded }),
+        ...(revert ? { autoUpdate: false, autoUpdateChangedAt: new Date().toISOString(), revertedAt: new Date().toISOString(), revertedFromVersion: previous!.version } : {})
+      };
+      await this.stateStore("global").upsert(installed);
+      if (hadPrevious) await this.storage.remove("global", backupPath).catch(() => undefined);
+      return installed;
+    } catch (error) {
+      if (added) await manager.remove(profile, bundle.name, targetPath).catch(() => undefined);
+      await this.storage.remove("global", targetPath).catch(() => undefined);
+      if (hadPrevious) {
+        await this.storage.move("global", backupPath, targetPath).catch(() => undefined);
+        if (previous?.harnessBundle && !previous.installedPath.startsWith(".offload/")) {
+          await manager.add(profile, previous.harnessBundle.name, targetPath).catch(() => undefined);
+        }
+      }
+      throw error;
+    }
+  }
+
+  private async assertHarnessBundleUnmodified(installed: InstalledPackage): Promise<void> {
+    const bundle = installed.harnessBundle;
+    if (!bundle || installed.platform !== "deepseek-harness" || installed.scope !== "global") {
+      throw new Error("Invalid DeepSeek Harness bundle ownership metadata.");
+    }
+    if (!this.storage.listFiles) throw new Error("This host cannot verify DeepSeek Harness bundle ownership.");
+    const actualPaths = (await this.storage.listFiles("global", installed.installedPath)).map((path) => safeJoinRelative(path)).sort();
+    const ownedPaths = bundle.files.map((file) => safeJoinRelative(file.path)).sort();
+    if (actualPaths.length !== ownedPaths.length || actualPaths.some((path, index) => path !== ownedPaths[index])) {
+      throw new Error(`DeepSeek Harness bundle '${bundle.name}' contains unowned or missing files.`);
+    }
+    for (const file of bundle.files) {
+      const relativePath = safeJoinRelative(installed.installedPath, file.path);
+      const content = await this.storage.readFile("global", relativePath);
+      if (!content || sha256(content) !== file.sha256) {
+        throw new Error(`DeepSeek Harness bundle '${bundle.name}' was modified after installation.`);
+      }
+    }
+  }
+
+  private async uninstallHarnessBundle(installed: InstalledPackage): Promise<void> {
+    await this.assertHarnessBundleUnmodified(installed);
+    const bundle = installed.harnessBundle!;
+    const manager = this.harnessProfileManager;
+    if (!installed.installedPath.startsWith(".offload/")) {
+      if (!manager) throw new Error("This host cannot manage DeepSeek Harness profiles.");
+      await manager.remove(bundle.profile, bundle.name, installed.installedPath);
+    }
+    try {
+      await this.stateStore("global").remove(installed.id, installed.platform, installed.scope, installed.sourceId);
+      await this.storage.remove("global", installed.installedPath);
+    } catch (error) {
+      await this.stateStore("global").upsert(installed).catch(() => undefined);
+      if (!installed.installedPath.startsWith(".offload/") && manager) {
+        await manager.add(bundle.profile, bundle.name, installed.installedPath).catch(() => undefined);
+      }
+      throw error;
+    }
+  }
+
+  private async offloadHarnessBundle(installed: InstalledPackage): Promise<InstalledPackage> {
+    await this.assertHarnessBundleUnmodified(installed);
+    if (!this.harnessProfileManager) throw new Error("This host cannot manage DeepSeek Harness profiles.");
+    const bundle = installed.harnessBundle!;
+    const offloadPath = offloadRelativePath("deepseek-harness", installed.type, installed.id);
+    if (await this.storage.exists("global", offloadPath)) throw new Error(`Offload path '${offloadPath}' already exists.`);
+    await this.harnessProfileManager.remove(bundle.profile, bundle.name, installed.installedPath);
+    try {
+      await this.moveDirectory("global", installed.installedPath, offloadPath);
+      const moved = { ...installed, installedPath: offloadPath, hotloaded: false, offloadRequestedAt: new Date().toISOString() };
+      await this.stateStore("global").upsert(moved);
+      return moved;
+    } catch (error) {
+      if (await this.storage.exists("global", offloadPath)) {
+        await this.moveDirectory("global", offloadPath, installed.installedPath).catch(() => undefined);
+      }
+      await this.harnessProfileManager.add(bundle.profile, bundle.name, installed.installedPath).catch(() => undefined);
+      throw error;
+    }
+  }
+
+  private async hotloadHarnessBundle(installed: InstalledPackage): Promise<InstalledPackage> {
+    await this.assertHarnessBundleUnmodified(installed);
+    if (!this.harnessProfileManager) throw new Error("This host cannot manage DeepSeek Harness profiles.");
+    const bundle = installed.harnessBundle!;
+    const activePath = installRelativePath("deepseek-harness", installed.type, installed.id, this.config.platformPathOverrides);
+    if (await this.storage.exists("global", activePath)) throw new Error(`Active path '${activePath}' already exists.`);
+    await this.moveDirectory("global", installed.installedPath, activePath);
+    let added = false;
+    try {
+      await this.harnessProfileManager.add(bundle.profile, bundle.name, activePath);
+      added = true;
+      const moved = { ...installed, installedPath: activePath, hotloaded: true, hotloadRequestedAt: new Date().toISOString() };
+      await this.stateStore("global").upsert(moved);
+      return moved;
+    } catch (error) {
+      if (added) await this.harnessProfileManager.remove(bundle.profile, bundle.name, activePath).catch(() => undefined);
+      await this.moveDirectory("global", activePath, installed.installedPath).catch(() => undefined);
+      throw error;
+    }
   }
 
   private stateStore(scope: InstallScope): InstalledStateStore {
@@ -869,6 +1132,11 @@ function isOffloaded(installed: InstalledPackage): boolean {
 }
 
 function isCanonicalInstalledPath(installed: InstalledPackage, config: MarketplaceConfig): boolean {
+  if (installed.harnessBundle) {
+    return installed.platform === "deepseek-harness" && installed.scope === "global"
+      && (installed.installedPath === installRelativePath(installed.platform, installed.type, installed.id, config.platformPathOverrides)
+        || isOffloaded(installed));
+  }
   if (installed.type === "mcp") {
     return installed.scope === "global"
       && installed.installedPath === mcpConfigRelativePath(installed.platform)

@@ -129,6 +129,8 @@ function isInstalledPackage(value: unknown): value is InstalledPackage {
     && (record.group === undefined || typeof record.group === "string")
     && (record.managedConfig === undefined || isManagedConfigContribution(record.managedConfig))
     && (record.managedPayloadPath === undefined || typeof record.managedPayloadPath === "string")
+    && (record.harnessBundle === undefined || isHarnessBundle(record.harnessBundle))
+    && (record.harnessProfile === undefined || (typeof record.harnessProfile === "string" && /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/.test(record.harnessProfile)))
     && (record.hotloaded === undefined || typeof record.hotloaded === "boolean")
     && (record.hotloadRequestedAt === undefined || typeof record.hotloadRequestedAt === "string")
     && (record.offloadRequestedAt === undefined || typeof record.offloadRequestedAt === "string")
@@ -138,6 +140,13 @@ function isInstalledPackage(value: unknown): value is InstalledPackage {
     && (record.revertedAt === undefined || typeof record.revertedAt === "string")
     && (record.revertedFromVersion === undefined || typeof record.revertedFromVersion === "string")
     && (record.migrationHistory === undefined || (Array.isArray(record.migrationHistory) && record.migrationHistory.every(isMigrationHistoryEntry)));
+}
+
+function isHarnessBundle(value: unknown): boolean {
+  return isPlainRecord(value) && typeof value.profile === "string" && typeof value.name === "string"
+    && typeof value.contentSha256 === "string" && /^[0-9a-f]{64}$/.test(value.contentSha256)
+    && Array.isArray(value.files) && value.files.every((file: unknown) => isPlainRecord(file)
+      && typeof file.path === "string" && typeof file.sha256 === "string" && /^[0-9a-f]{64}$/.test(file.sha256));
 }
 
 function isMigrationHistoryEntry(value: unknown): boolean {

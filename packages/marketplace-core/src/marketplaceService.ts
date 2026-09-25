@@ -1,5 +1,5 @@
 import type { InstallScope, InstalledPackage, MarketplaceConfig, MarketplacePackage, Platform } from "./types/packages";
-import type { CredentialProvider, MarketplaceConfigProvider, MarketplaceLogger, MarketplaceStorage, McpScriptRunner } from "./ports";
+import type { CredentialProvider, HarnessProfileManager, MarketplaceConfigProvider, MarketplaceLogger, MarketplaceStorage, McpScriptRunner } from "./ports";
 import { RepositoryClient } from "./services/repositoryClient";
 import { PackageInstaller } from "./services/packageInstaller";
 import { toSerializableMarketplaceModel, type SerializableMarketplaceModel } from "./services/marketplaceModel";
@@ -16,6 +16,7 @@ export interface MarketplaceServiceDependencies {
   readonly credentials: CredentialProvider;
   readonly logger: MarketplaceLogger;
   readonly mcpScriptRunner?: McpScriptRunner;
+  readonly harnessProfileManager?: HarnessProfileManager;
 }
 
 export type SyncAction =
@@ -159,7 +160,7 @@ export class MarketplaceService {
 
   private async installer(): Promise<PackageInstaller> {
     const client = this.repositoryClient();
-    return new PackageInstaller(this.dependencies.storage, this.config(), (pkg) => client.fetchPackageFiles(pkg), this.dependencies.mcpScriptRunner);
+    return new PackageInstaller(this.dependencies.storage, this.config(), (pkg) => client.fetchPackageFiles(pkg), this.dependencies.mcpScriptRunner, this.dependencies.harnessProfileManager);
   }
 }
 

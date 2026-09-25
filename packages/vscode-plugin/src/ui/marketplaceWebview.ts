@@ -13,6 +13,7 @@ export interface MarketplaceViewModel {
   readonly knownGroups: readonly string[];
   readonly defaultBranch: string;
   readonly defaultPlatform: Platform;
+  readonly deepseekHarnessProfile: string;
   readonly extensionVersion: string;
   readonly repositories: readonly EditableRepositorySetting[];
 }
@@ -67,6 +68,7 @@ export class MarketplaceWebview implements vscode.WebviewViewProvider {
     knownGroups: [],
     defaultBranch: "main",
     defaultPlatform: "codex",
+    deepseekHarnessProfile: "web",
     extensionVersion: "0.0.0",
     repositories: []
   };
@@ -548,7 +550,7 @@ function renderHtml(webview: vscode.Webview, nonce: string, model: MarketplaceVi
     </section>
     <section id="filterPanel" class="filter-panel" aria-label="Additional marketplace filters" hidden>
       <label class="filter-field">Package type<select id="type" aria-label="Filter by type"><option value="">All package types</option><option value="skill">Skills</option><option value="command">Commands</option><option value="mcp">MCPs</option><option value="agent">Agents</option><option value="hook">Hooks</option><option value="rule">Rules</option></select></label>
-      <label class="filter-field">Platform<select id="platform" aria-label="Filter by platform"><option value="">All platforms</option><option value="codex">Codex</option><option value="cursor">Cursor</option><option value="github-copilot">GitHub Copilot</option><option value="claude">Claude</option></select></label>
+      <label class="filter-field">Platform<select id="platform" aria-label="Filter by platform"><option value="">All platforms</option><option value="codex">Codex</option><option value="cursor">Cursor</option><option value="github-copilot">GitHub Copilot</option><option value="claude">Claude</option><option value="deepseek-harness">DeepSeek Harness</option></select></label>
       <label class="filter-field">Group<select id="group" aria-label="Filter by group"><option value="">All groups</option></select></label>
       <fieldset class="repository-filter"><legend>Repositories</legend><div id="repositoryOptions" class="repository-options"></div></fieldset>
       <div class="filter-footer"><button id="clearFilters" class="secondary" type="button">Clear filters</button></div>
@@ -567,7 +569,8 @@ function renderHtml(webview: vscode.Webview, nonce: string, model: MarketplaceVi
         <p>Choose the branch used by the default repository and the preferred platform for package installs.</p>
         <div class="repository-form-grid">
           <label class="filter-field">Default branch<input id="defaultBranch" type="text" required pattern="[A-Za-z0-9._/@-]+" value="${escapeHtmlText(model.defaultBranch)}"></label>
-          <label class="filter-field">Default platform<select id="defaultPlatform"><option value="codex">Codex</option><option value="cursor">Cursor</option><option value="github-copilot">GitHub Copilot</option><option value="claude">Claude</option></select></label>
+          <label class="filter-field">Default platform<select id="defaultPlatform"><option value="codex">Codex</option><option value="cursor">Cursor</option><option value="github-copilot">GitHub Copilot</option><option value="claude">Claude</option><option value="deepseek-harness">DeepSeek Harness</option></select></label>
+          <label class="filter-field">DeepSeek Harness profile<input id="deepseekHarnessProfile" type="text" required pattern="[A-Za-z0-9][A-Za-z0-9._-]{0,63}" value="${escapeHtmlText(model.deepseekHarnessProfile)}"></label>
         </div>
         <div class="actions"><button id="saveDefaults" type="button">Save defaults</button></div>
       </div>
@@ -630,6 +633,7 @@ function renderHtml(webview: vscode.Webview, nonce: string, model: MarketplaceVi
     const configurationTab = document.getElementById("configurationTab");
     const defaultBranch = document.getElementById("defaultBranch");
     const defaultPlatform = document.getElementById("defaultPlatform");
+    const deepseekHarnessProfile = document.getElementById("deepseekHarnessProfile");
     defaultPlatform.value = model.defaultPlatform;
     const savedWebviewState = vscode.getState() || {};
     let activeTab = ["available", "installed", "configuration"].includes(savedWebviewState.activeTab) ? savedWebviewState.activeTab : "available";
@@ -647,8 +651,8 @@ function renderHtml(webview: vscode.Webview, nonce: string, model: MarketplaceVi
     packageAutoUpdate.classList.toggle("active", model.autoUpdateEnabled);
     packageAutoUpdate.addEventListener("click", () => vscode.postMessage({ command: "toggleAutoUpdate" }));
     document.getElementById("saveDefaults").addEventListener("click", () => {
-      if (!defaultBranch.reportValidity()) return;
-      vscode.postMessage({ command: "setDefaults", defaults: { branch: defaultBranch.value, platform: defaultPlatform.value } });
+      if (!defaultBranch.reportValidity() || !deepseekHarnessProfile.reportValidity()) return;
+      vscode.postMessage({ command: "setDefaults", defaults: { branch: defaultBranch.value, platform: defaultPlatform.value, deepseekHarnessProfile: deepseekHarnessProfile.value } });
     });
     document.getElementById("installGroup").addEventListener("click", () => vscode.postMessage({ command: "installByGroup" }));
     document.getElementById("refresh").addEventListener("click", () => vscode.postMessage({ command: "refresh" }));
@@ -1006,7 +1010,7 @@ function renderHtml(webview: vscode.Webview, nonce: string, model: MarketplaceVi
     }
 
     function platformLabel(platform) {
-      return platform === "codex" ? "Codex" : platform === "github-copilot" ? "GitHub Copilot" : platform === "claude" ? "Claude" : platform;
+      return platform === "codex" ? "Codex" : platform === "github-copilot" ? "GitHub Copilot" : platform === "claude" ? "Claude" : platform === "deepseek-harness" ? "DeepSeek Harness" : platform;
     }
 
     function actionButton(option, pkg, className, disabled, extra) {
@@ -1056,7 +1060,7 @@ function isAction(value: unknown): value is MarketplaceAction {
 }
 
 function isPlatform(value: unknown): value is Platform {
-  return value === "codex" || value === "cursor" || value === "github-copilot" || value === "claude";
+  return value === "codex" || value === "cursor" || value === "github-copilot" || value === "claude" || value === "deepseek-harness";
 }
 
 function isInstallScope(value: unknown): value is InstallScope {

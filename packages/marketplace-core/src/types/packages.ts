@@ -1,7 +1,7 @@
 export const packageTypes = ["skill", "command", "mcp", "agent", "hook", "rule"] as const;
 export type PackageType = (typeof packageTypes)[number];
 
-export const platforms = ["codex", "cursor", "github-copilot", "claude"] as const;
+export const platforms = ["codex", "cursor", "github-copilot", "claude", "deepseek-harness"] as const;
 export type Platform = (typeof platforms)[number];
 
 export const installScopes = ["workspace", "global", "cloud"] as const;
@@ -141,6 +141,15 @@ export interface InstalledPackage {
   readonly managedConfig?: ManagedConfigContribution;
   /** Managed global package payload retained for executable MCP lifecycle scripts. */
   readonly managedPayloadPath?: string;
+  /** Exact Harness profile and bundle recorded when this installation was activated. */
+  readonly harnessBundle?: {
+    readonly profile: string;
+    readonly name: string;
+    readonly contentSha256: string;
+    readonly files: readonly { readonly path: string; readonly sha256: string }[];
+  };
+  /** Profile whose rule adapter loads this Harness instruction package. */
+  readonly harnessProfile?: string;
   readonly installedPath: string;
   readonly installedAt: string;
   readonly hotloaded?: boolean;
@@ -208,6 +217,8 @@ export interface MarketplaceConfig {
   readonly repositories?: readonly RepositoryConfig[];
   readonly platformPathOverrides: PlatformPathOverrides;
   readonly defaultPlatform: Platform;
+  /** Harness profile receiving globally installed bundles. */
+  readonly deepseekHarnessProfile?: string;
   readonly autoUpdateEnabled?: boolean;
   readonly autoInstallGroups?: readonly string[];
 }

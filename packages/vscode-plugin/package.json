@@ -2,7 +2,7 @@
   "name": "ai-marketplace",
   "displayName": "AI Marketplace",
   "description": "Browse, install, update, migrate, revert, hotload, and offload AI Marketplace packages from GitHub, Azure DevOps, and GitLab repositories.",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "publisher": "Idov31",
   "license": "GPL-3.0-only",
   "icon": "media/ai-marketplace.png",
@@ -15,7 +15,7 @@
     "url": "https://github.com/Idov31/ai-marketplace"
   },
   "engines": {
-    "vscode": "^1.90.0"
+    "vscode": "^1.138.0"
   },
   "categories": [
     "Other"
@@ -189,10 +189,23 @@
             "codex",
             "cursor",
             "github-copilot",
-            "claude"
+              "claude",
+              "deepseek-harness"
           ],
           "default": "codex",
           "description": "Default platform selected when installing packages."
+        },
+        "aiMarketplace.deepseekHarnessProfile": {
+          "type": "string",
+          "default": "web",
+          "scope": "application",
+          "description": "Named DeepSeek Harness profile receiving Marketplace bundle installations."
+        },
+        "aiMarketplace.deepseekHarnessCliPath": {
+          "type": "string",
+          "default": "",
+          "scope": "application",
+          "description": "Optional absolute path to the DeepSeek Harness dsh executable or lib/bin.js. Empty searches the local npx cache for the tested 0.1.5-rc.3 release."
         },
         "aiMarketplace.packageFolders": {
           "type": "object",
@@ -215,7 +228,7 @@
     }
   },
   "devDependencies": {
-    "@ai-marketplace/core": "1.0.1",
+    "@ai-marketplace/core": "1.1.0",
     "@types/node": "^26.6.1",
     "@types/vscode": "1.138.0",
     "@typescript-eslint/eslint-plugin": "^8.70.0",
