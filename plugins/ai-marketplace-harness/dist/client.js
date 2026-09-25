@@ -92,7 +92,7 @@ globalThis.__ModuleLoader__.load({
       apply(ctx) {
         ctx.effect(() => ctx.sidebarRightTabs.register({
           id: tabId, kind: "ai-marketplace", title: () => "AI Marketplace",
-          guide: { order: 40, title: () => "AI Marketplace", description: () => "Browse and manage Harness packages" }
+          guide: [{ order: 40, title: () => "AI Marketplace", description: () => "Browse and manage Harness packages" }]
         }), "AI Marketplace tab");
         ctx.effect(() => ctx.slots.inject("sidebar.right.pane.tab", () => ctx.slots.register(
           { name: "sidebar.right.pane.tab", key: tabId }, MarketplacePage

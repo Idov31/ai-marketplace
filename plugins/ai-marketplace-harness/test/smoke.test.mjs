@@ -53,7 +53,12 @@ describe("Harness Web UI bundle", () => {
     const plugin = client.factory((name) => name === "react" ? React : undefined);
     plugin.apply({
       effect: (register) => register(),
-      sidebarRightTabs: { register: (definition) => { assert.equal(definition.kind, "ai-marketplace"); return () => undefined; } },
+      sidebarRightTabs: { register: (definition) => {
+        assert.equal(definition.kind, "ai-marketplace");
+        assert.ok(Array.isArray(definition.guide));
+        assert.equal(definition.guide[0].order, 40);
+        return () => undefined;
+      } },
       slots: { inject: (_name, register) => register(), register: (_definition, component) => { page = component; return () => undefined; } }
     });
     hookIndex = 0;
