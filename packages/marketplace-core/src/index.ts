@@ -17,6 +17,7 @@ export * from "./services/manifestSchema";
 export * from "./services/manifestDiagnostics";
 export * from "./services/groupInstall";
 export * from "./services/harnessBundle";
+export * from "./services/harnessPresetRoots";
 export * from "./services/installedState";
 export * from "./services/installPlanning";
 export * from "./services/marketplaceModel";

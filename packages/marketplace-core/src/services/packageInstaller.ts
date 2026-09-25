@@ -400,18 +400,28 @@ export class PackageInstaller {
     await this.assertMigrationDestinationAvailable(pkg, predecessor, targetPath);
     const profile = predecessor.harnessBundle.profile;
     const backupPath = `${predecessor.installedPath}.backup-${randomUUID()}`;
+    if (predecessor.type === "mcp") await this.runMcpScript(predecessor.installedPath, mcpUninstallScript, "migrate", "deepseek-harness");
     await this.storage.move("global", predecessor.installedPath, backupPath);
     let removed = false;
     let added = false;
+    let destinationPresetRootAdded = false;
     try {
       if (!offloaded) {
         await this.harnessProfileManager.remove(profile, predecessor.harnessBundle.name, predecessor.installedPath);
         removed = true;
+        if (predecessor.harnessBundle.presetRoot) {
+          await this.removeHarnessPresetRoot(this.harnessProfileManager, profile, predecessor.installedPath, predecessor.harnessBundle.presetRoot);
+        }
       }
       await this.replaceDirectory("global", targetPath, files);
+      if (pkg.manifest.type === "mcp") await this.runMcpScript(targetPath, mcpInstallScript, "migrate", "deepseek-harness");
       if (!offloaded) {
         await this.harnessProfileManager.add(profile, bundle.name, targetPath);
         added = true;
+        if (bundle.presetRoot) {
+          await this.addHarnessPresetRoot(this.harnessProfileManager, profile, targetPath, bundle.presetRoot, false);
+          destinationPresetRootAdded = true;
+        }
       }
       const migrated: InstalledPackage = {
         ...predecessor,
@@ -419,6 +429,7 @@ export class PackageInstaller {
         sourceRepo: sourceRepository(pkg), sourceBranch: pkg.source.branch, sourcePath: pkg.sourcePath,
         ...sourceMetadata(pkg), installedPath: targetPath,
         harnessBundle: { profile, name: bundle.name, contentSha256: bundle.contentSha256,
+          ...(bundle.presetRoot ? { presetRoot: bundle.presetRoot } : {}),
           files: files.map((file) => ({ path: file.relativePath, sha256: sha256(file.content) })) },
         migrationHistory: [...(predecessor.migrationHistory ?? []), {
           migratedAt: new Date().toISOString(), from: migrationSnapshot(predecessor), to: migrationSnapshotForPackage(pkg)
@@ -429,9 +440,14 @@ export class PackageInstaller {
       return migrated;
     } catch (error) {
       if (added) await this.harnessProfileManager.remove(profile, bundle.name, targetPath).catch(() => undefined);
+      if (destinationPresetRootAdded && bundle.presetRoot) await this.removeHarnessPresetRoot(this.harnessProfileManager, profile, targetPath, bundle.presetRoot).catch(() => undefined);
       await this.storage.remove("global", targetPath).catch(() => undefined);
       await this.storage.move("global", backupPath, predecessor.installedPath).catch(() => undefined);
-      if (removed) await this.harnessProfileManager.add(profile, predecessor.harnessBundle.name, predecessor.installedPath).catch(() => undefined);
+      if (predecessor.type === "mcp") await this.runMcpScript(predecessor.installedPath, mcpInstallScript, "update", "deepseek-harness").catch(() => undefined);
+      if (removed) {
+        await this.harnessProfileManager.add(profile, predecessor.harnessBundle.name, predecessor.installedPath).catch(() => undefined);
+        if (predecessor.harnessBundle.presetRoot) await this.addHarnessPresetRoot(this.harnessProfileManager, profile, predecessor.installedPath, predecessor.harnessBundle.presetRoot, true).catch(() => undefined);
+      }
       throw error;
     }
   }
@@ -462,14 +478,28 @@ export class PackageInstaller {
     const hadPrevious = previous !== undefined && await this.storage.exists("global", targetPath);
     if (hadPrevious) await this.storage.move("global", targetPath, backupPath);
     let added = false;
+    let lifecycleInstalled = false;
+    let presetRootAdded = false;
     try {
       await this.replaceDirectory("global", targetPath, files);
+      if (pkg.manifest.type === "mcp") {
+        await this.runMcpScript(targetPath, mcpInstallScript, previous ? revert ? "revert" : "update" : "install", "deepseek-harness");
+        lifecycleInstalled = true;
+      }
       if (!targetPath.startsWith(".offload/")) {
+        if (previous?.harnessBundle?.presetRoot && previous.harnessBundle.presetRoot !== bundle.presetRoot) {
+          await this.removeHarnessPresetRoot(manager, profile, targetPath, previous.harnessBundle.presetRoot);
+        }
         if (previous?.harnessBundle && previous.harnessBundle.name !== bundle.name) {
           await manager.remove(profile, previous.harnessBundle.name, targetPath);
         }
         await manager.add(profile, bundle.name, targetPath);
         added = true;
+        if (bundle.presetRoot) {
+          await this.addHarnessPresetRoot(manager, profile, targetPath, bundle.presetRoot,
+            previous?.harnessBundle?.presetRoot === bundle.presetRoot);
+          presetRootAdded = true;
+        }
       }
       const installed: InstalledPackage = {
         id: pkg.manifest.id, type: pkg.manifest.type, platform: "deepseek-harness", scope: "global",
@@ -478,6 +508,7 @@ export class PackageInstaller {
         installedAt: previous?.installedAt ?? new Date().toISOString(),
         harnessBundle: {
           profile, name: bundle.name, contentSha256: bundle.contentSha256,
+          ...(bundle.presetRoot ? { presetRoot: bundle.presetRoot } : {}),
           files: files.map((file) => ({ path: file.relativePath, sha256: sha256(file.content) }))
         },
         ...(previous?.hotloaded === undefined ? {} : { hotloaded: previous.hotloaded }),
@@ -488,11 +519,17 @@ export class PackageInstaller {
       return installed;
     } catch (error) {
       if (added) await manager.remove(profile, bundle.name, targetPath).catch(() => undefined);
+      if (presetRootAdded && bundle.presetRoot) await this.removeHarnessPresetRoot(manager, profile, targetPath, bundle.presetRoot).catch(() => undefined);
+      if (lifecycleInstalled && !hadPrevious) await this.runMcpScript(targetPath, mcpUninstallScript, "uninstall", "deepseek-harness").catch(() => undefined);
       await this.storage.remove("global", targetPath).catch(() => undefined);
       if (hadPrevious) {
         await this.storage.move("global", backupPath, targetPath).catch(() => undefined);
+        if (previous?.type === "mcp") await this.runMcpScript(targetPath, mcpInstallScript, "update", "deepseek-harness").catch(() => undefined);
         if (previous?.harnessBundle && !previous.installedPath.startsWith(".offload/")) {
           await manager.add(profile, previous.harnessBundle.name, targetPath).catch(() => undefined);
+        }
+        if (previous?.harnessBundle?.presetRoot && !previous.installedPath.startsWith(".offload/")) {
+          await this.addHarnessPresetRoot(manager, profile, targetPath, previous.harnessBundle.presetRoot, true).catch(() => undefined);
         }
       }
       throw error;
@@ -523,18 +560,27 @@ export class PackageInstaller {
     await this.assertHarnessBundleUnmodified(installed);
     const bundle = installed.harnessBundle!;
     const manager = this.harnessProfileManager;
-    if (!installed.installedPath.startsWith(".offload/")) {
-      if (!manager) throw new Error("This host cannot manage DeepSeek Harness profiles.");
-      await manager.remove(bundle.profile, bundle.name, installed.installedPath);
-    }
+    if (bundle.presetRoot && !manager) throw new Error("This host cannot manage DeepSeek Harness agent presets.");
+    if (!manager && !installed.installedPath.startsWith(".offload/")) throw new Error("This host cannot manage DeepSeek Harness profiles.");
+    let removed = false;
+    let rootRemoved = false;
     try {
+      if (!installed.installedPath.startsWith(".offload/")) {
+        await manager!.remove(bundle.profile, bundle.name, installed.installedPath);
+        removed = true;
+      }
+      if (bundle.presetRoot && manager) {
+        await this.removeHarnessPresetRoot(manager, bundle.profile, installed.installedPath, bundle.presetRoot);
+        rootRemoved = true;
+      }
+      if (installed.type === "mcp") await this.runMcpScript(installed.installedPath, mcpUninstallScript, "uninstall", "deepseek-harness");
       await this.stateStore("global").remove(installed.id, installed.platform, installed.scope, installed.sourceId);
       await this.storage.remove("global", installed.installedPath);
     } catch (error) {
       await this.stateStore("global").upsert(installed).catch(() => undefined);
-      if (!installed.installedPath.startsWith(".offload/") && manager) {
-        await manager.add(bundle.profile, bundle.name, installed.installedPath).catch(() => undefined);
-      }
+      if (removed && manager) await manager.add(bundle.profile, bundle.name, installed.installedPath).catch(() => undefined);
+      if (rootRemoved && bundle.presetRoot && manager) await this.addHarnessPresetRoot(manager, bundle.profile, installed.installedPath, bundle.presetRoot, true).catch(() => undefined);
+      if (installed.type === "mcp") await this.runMcpScript(installed.installedPath, mcpInstallScript, "update", "deepseek-harness").catch(() => undefined);
       throw error;
     }
   }
@@ -545,8 +591,15 @@ export class PackageInstaller {
     const bundle = installed.harnessBundle!;
     const offloadPath = offloadRelativePath("deepseek-harness", installed.type, installed.id);
     if (await this.storage.exists("global", offloadPath)) throw new Error(`Offload path '${offloadPath}' already exists.`);
-    await this.harnessProfileManager.remove(bundle.profile, bundle.name, installed.installedPath);
+    let presetRootRemoved = false;
+    let bundleRemoved = false;
     try {
+      if (bundle.presetRoot) {
+        await this.removeHarnessPresetRoot(this.harnessProfileManager, bundle.profile, installed.installedPath, bundle.presetRoot);
+        presetRootRemoved = true;
+      }
+      await this.harnessProfileManager.remove(bundle.profile, bundle.name, installed.installedPath);
+      bundleRemoved = true;
       await this.moveDirectory("global", installed.installedPath, offloadPath);
       const moved = { ...installed, installedPath: offloadPath, hotloaded: false, offloadRequestedAt: new Date().toISOString() };
       await this.stateStore("global").upsert(moved);
@@ -555,7 +608,8 @@ export class PackageInstaller {
       if (await this.storage.exists("global", offloadPath)) {
         await this.moveDirectory("global", offloadPath, installed.installedPath).catch(() => undefined);
       }
-      await this.harnessProfileManager.add(bundle.profile, bundle.name, installed.installedPath).catch(() => undefined);
+      if (bundleRemoved) await this.harnessProfileManager.add(bundle.profile, bundle.name, installed.installedPath).catch(() => undefined);
+      if (presetRootRemoved && bundle.presetRoot) await this.addHarnessPresetRoot(this.harnessProfileManager, bundle.profile, installed.installedPath, bundle.presetRoot, true).catch(() => undefined);
       throw error;
     }
   }
@@ -568,14 +622,20 @@ export class PackageInstaller {
     if (await this.storage.exists("global", activePath)) throw new Error(`Active path '${activePath}' already exists.`);
     await this.moveDirectory("global", installed.installedPath, activePath);
     let added = false;
+    let presetRootAdded = false;
     try {
       await this.harnessProfileManager.add(bundle.profile, bundle.name, activePath);
       added = true;
+      if (bundle.presetRoot) {
+        await this.addHarnessPresetRoot(this.harnessProfileManager, bundle.profile, activePath, bundle.presetRoot, true);
+        presetRootAdded = true;
+      }
       const moved = { ...installed, installedPath: activePath, hotloaded: true, hotloadRequestedAt: new Date().toISOString() };
       await this.stateStore("global").upsert(moved);
       return moved;
     } catch (error) {
       if (added) await this.harnessProfileManager.remove(bundle.profile, bundle.name, activePath).catch(() => undefined);
+      if (presetRootAdded && bundle.presetRoot) await this.removeHarnessPresetRoot(this.harnessProfileManager, bundle.profile, activePath, bundle.presetRoot).catch(() => undefined);
       await this.moveDirectory("global", activePath, installed.installedPath).catch(() => undefined);
       throw error;
     }
@@ -583,6 +643,16 @@ export class PackageInstaller {
 
   private stateStore(scope: InstallScope): InstalledStateStore {
     return new InstalledStateStore(this.storage, scope);
+  }
+
+  private async addHarnessPresetRoot(manager: HarnessProfileManager, profile: string, bundlePath: string, presetRoot: string, alreadyOwned: boolean): Promise<void> {
+    if (!manager.addPresetRoot) throw new Error("This host cannot manage profile-scoped DeepSeek Harness agent presets.");
+    await manager.addPresetRoot(profile, bundlePath, presetRoot, alreadyOwned);
+  }
+
+  private async removeHarnessPresetRoot(manager: HarnessProfileManager, profile: string, bundlePath: string, presetRoot: string): Promise<void> {
+    if (!manager.removePresetRoot) throw new Error("This host cannot manage profile-scoped DeepSeek Harness agent presets.");
+    await manager.removePresetRoot(profile, bundlePath, presetRoot);
   }
 
   private async installMcp(

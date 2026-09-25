@@ -145,6 +145,7 @@ function isInstalledPackage(value: unknown): value is InstalledPackage {
 function isHarnessBundle(value: unknown): boolean {
   return isPlainRecord(value) && typeof value.profile === "string" && typeof value.name === "string"
     && typeof value.contentSha256 === "string" && /^[0-9a-f]{64}$/.test(value.contentSha256)
+    && (value.presetRoot === undefined || (typeof value.presetRoot === "string" && value.presetRoot.length > 0))
     && Array.isArray(value.files) && value.files.every((file: unknown) => isPlainRecord(file)
       && typeof file.path === "string" && typeof file.sha256 === "string" && /^[0-9a-f]{64}$/.test(file.sha256));
 }

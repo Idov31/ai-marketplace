@@ -52,6 +52,8 @@ export interface HarnessProfileManager {
   ensureBridge(profile: string): Promise<void>;
   add(profile: string, bundleName: string, payloadRelativePath: string): Promise<void>;
   remove(profile: string, bundleName: string, payloadRelativePath: string): Promise<void>;
+  addPresetRoot?(profile: string, bundlePath: string, presetRoot: string, alreadyOwned: boolean): Promise<void>;
+  removePresetRoot?(profile: string, bundlePath: string, presetRoot: string): Promise<void>;
 }
 
 export interface Clock {

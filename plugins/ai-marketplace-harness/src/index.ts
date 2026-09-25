@@ -1,11 +1,11 @@
 import { spawn } from "node:child_process";
-import { lstat, readdir, readFile } from "node:fs/promises";
+import { lstat, readdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { existsSync, lstatSync, readdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join, relative, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  MarketplaceService, toSerializableMarketplaceModel,
+  MarketplaceService, toSerializableMarketplaceModel, addHarnessPresetRoot, hasHarnessPresetPatchEntry, removeHarnessPresetRoot, resolveHarnessPresetConfig,
   type HarnessProfileManager, type InstallScope, type InstalledPackage, type MarketplaceConfig,
   type MarketplacePackage, type MarketplaceStorage, type PackageFile
 } from "../../../packages/marketplace-core/src/index.ts";
@@ -13,6 +13,7 @@ import {
   NodeMarketplaceStorage, createEnvironmentCredentialProvider, readHostConfig, toMarketplaceConfig,
   type MarketplaceCliHostPolicy
 } from "../../../packages/marketplace-node-cli/src/index.ts";
+import { HarnessMcpScriptRunner } from "./mcpScriptRunner.ts";
 
 export const name = "ai-marketplace-harness";
 export const inject: string[] = [];
@@ -38,6 +39,12 @@ interface HostContext {
   connection: { requestRejection(req: WebRequest): number | undefined };
   sessions: { get(id: string): { header: { cwd?: string } } | undefined };
   systemPrompt: { section(definition: { name: string; order: number; interpolate: boolean; text: (input: { agent?: { session?: { header?: { cwd?: string } } } }) => string }): () => void };
+}
+
+interface PresetRootOwnership {
+  readonly createdPatchEntry: boolean;
+  readonly baseConfig?: Readonly<Record<string, unknown>>;
+  readonly roots: readonly string[];
 }
 
 export function apply(ctx: HostContext): void {
@@ -69,7 +76,8 @@ async function handleRequest(ctx: HostContext, req: WebRequest, res: WebResponse
       storage, configuration: { read: () => config },
       credentials: createEnvironmentCredentialProvider(process.env),
       logger: { log: () => undefined },
-      harnessProfileManager: new ProfileManager()
+      harnessProfileManager: new ProfileManager(),
+      mcpScriptRunner: new HarnessMcpScriptRunner()
     });
     const action = body.action;
     if (action === "model" || action === "refresh") {
@@ -236,6 +244,83 @@ class ProfileManager implements HarnessProfileManager {
     await this.assertDependency(profile, bundle, resolve(userHome, payload), false);
     await this.run(["plugin", "--profile", profile, "remove", bundle]);
   }
+  public async addPresetRoot(profile: string, bundlePath: string, presetRoot: string, alreadyOwned: boolean): Promise<void> {
+    const bundle = this.bundlePath(bundlePath);
+    const root = this.presetPath(bundle, presetRoot);
+    const patch = await this.readProfilePatch(profile);
+    const previous = await this.readPresetOwnership(profile);
+    if (previous?.roots.includes(root) && !alreadyOwned) throw new Error("This Harness preset root is already owned by another Marketplace installation.");
+    const createdPatchEntry = previous?.createdPatchEntry ?? !hasHarnessPresetPatchEntry(patch);
+    const baseConfig = previous?.baseConfig ?? (createdPatchEntry ? await this.resolveBasePresetConfig(profile) : undefined);
+    const nextPatch = addHarnessPresetRoot(patch, root, alreadyOwned || previous?.roots.includes(root) === true, baseConfig);
+    const ownership: PresetRootOwnership = {
+      createdPatchEntry,
+      ...(baseConfig ? { baseConfig } : {}),
+      roots: previous?.roots.includes(root) ? previous.roots : [...(previous?.roots ?? []), root]
+    };
+    await this.writeProfilePatch(profile, nextPatch.content);
+    await this.writePresetOwnership(profile, ownership);
+  }
+  public async removePresetRoot(profile: string, bundlePath: string, presetRoot: string): Promise<void> {
+    const bundle = this.bundlePath(bundlePath);
+    const root = this.presetPath(bundle, presetRoot);
+    const ownership = await this.readPresetOwnership(profile);
+    if (ownership && !ownership.roots.includes(root)) return;
+    const remaining = ownership?.roots.filter((item) => item !== root) ?? [];
+    const next = removeHarnessPresetRoot(await this.readProfilePatch(profile), root,
+      ownership?.createdPatchEntry === true && remaining.length === 0, ownership?.baseConfig);
+    if (next) await this.writeProfilePatch(profile, next.content);
+    if (ownership && remaining.length === 0) await this.removePresetOwnership(profile);
+    else if (ownership) await this.writePresetOwnership(profile, { ...ownership, roots: remaining });
+  }
+  private bundlePath(relativePath: string): string {
+    if (!relativePath || relativePath.split(/[\\/]/).some((segment) => segment === ".." || segment === ".")) throw new Error("Unsafe DeepSeek Harness bundle path.");
+    const path = resolve(userHome, relativePath);
+    const within = relative(resolve(userHome, ".ai_marketplace"), path);
+    if (!within || within.startsWith("..") || within.startsWith("../") || isAbsolute(within)) throw new Error("Preset root bundle is outside Marketplace ownership.");
+    return path;
+  }
+  private presetPath(bundle: string, relativePath: string): string {
+    if (!relativePath || relativePath.split(/[\\/]/).some((segment) => segment === ".." || segment === ".")) throw new Error("Unsafe Harness preset root path.");
+    const path = resolve(bundle, relativePath);
+    const within = relative(bundle, path);
+    if (!within || within.startsWith("..") || isAbsolute(within)) throw new Error("Harness preset root escapes its installed bundle.");
+    return path.replaceAll("\\", "/");
+  }
+  private async readProfilePatch(profile: string): Promise<string | undefined> {
+    if (!profileName.test(profile)) throw new Error("Invalid Harness profile name.");
+    try { return await readFile(join(dshHome, "profiles", profile, "cordis.patch.yml"), "utf8"); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined; throw error; }
+  }
+  private async writeProfilePatch(profile: string, content: string): Promise<void> {
+    const path = join(dshHome, "profiles", profile, "cordis.patch.yml");
+    const temporary = `${path}.ai-marketplace-${Date.now()}.tmp`;
+    await writeFile(temporary, content, { encoding: "utf8", flag: "wx" });
+    try { await rename(temporary, path); }
+    finally { await unlink(temporary).catch(() => undefined); }
+  }
+  private presetOwnershipPath(profile: string): string { return join(dshHome, "profiles", profile, ".ai-marketplace-agent-presets.json"); }
+  private async readPresetOwnership(profile: string): Promise<PresetRootOwnership | undefined> {
+    try {
+      const value: unknown = JSON.parse(await readFile(this.presetOwnershipPath(profile), "utf8"));
+      if (!isRecord(value) || value.version !== 1 || typeof value.createdPatchEntry !== "boolean"
+        || !Array.isArray(value.roots) || value.roots.some((item) => typeof item !== "string")) {
+        throw new Error("Marketplace agent-preset ownership state is invalid.");
+      }
+      return { createdPatchEntry: value.createdPatchEntry, ...(isRecord(value.baseConfig) ? { baseConfig: value.baseConfig } : {}), roots: value.roots as string[] };
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+      throw error;
+    }
+  }
+  private async writePresetOwnership(profile: string, state: PresetRootOwnership): Promise<void> {
+    const path = this.presetOwnershipPath(profile);
+    const temporary = `${path}.ai-marketplace-${Date.now()}.tmp`;
+    await writeFile(temporary, `${JSON.stringify({ version: 1, ...state }, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+    try { await rename(temporary, path); }
+    finally { await unlink(temporary).catch(() => undefined); }
+  }
+  private async removePresetOwnership(profile: string): Promise<void> { await unlink(this.presetOwnershipPath(profile)).catch(() => undefined); }
   private async dependency(profile: string, bundle: string): Promise<unknown> {
     if (!profileName.test(profile) || !bundleName.test(bundle)) throw new Error("Invalid Harness profile or bundle name.");
     try {
@@ -247,6 +332,20 @@ class ProfileManager implements HarnessProfileManager {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
       throw error;
     }
+  }
+  private async resolveBasePresetConfig(profile: string): Promise<Readonly<Record<string, unknown>> | undefined> {
+    const path = join(dshHome, "profiles", profile, "package.json");
+    let manifest: unknown;
+    try { manifest = JSON.parse(await readFile(path, "utf8")); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined; throw error; }
+    if (!isRecord(manifest) || !isRecord(manifest.dsh) || !isRecord(manifest.dsh.profile) || !Array.isArray(manifest.dsh.profile.bundles)) return undefined;
+    const layers: string[] = [];
+    for (const bundle of manifest.dsh.profile.bundles) {
+      if (typeof bundle !== "string" || !bundleName.test(bundle)) continue;
+      try { layers.push(await readFile(join(dshHome, "profiles", profile, "node_modules", ...bundle.split("/"), "cordis.patch.yml"), "utf8")); }
+      catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+    }
+    return resolveHarnessPresetConfig(layers);
   }
   private async assertDependency(profile: string, bundle: string, path: string, allowMissing: boolean): Promise<void> {
     const dependency = await this.dependency(profile, bundle);

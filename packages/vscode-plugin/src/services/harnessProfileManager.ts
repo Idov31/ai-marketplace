@@ -2,12 +2,14 @@ import { spawn } from "node:child_process";
 import { homedir } from "node:os";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import * as vscode from "vscode";
-import type { HarnessProfileManager } from "@ai-marketplace/core";
+import { addHarnessPresetRoot, hasHarnessPresetPatchEntry, removeHarnessPresetRoot, resolveHarnessPresetConfig, type HarnessProfileManager } from "@ai-marketplace/core";
 import type { VscodeMarketplaceStorage } from "./vscodeStorage";
 
 const profilePattern = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/;
 const bundlePattern = /^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+$/;
 const testedHarnessVersion = "0.1.5-rc.3";
+
+interface PresetRootOwnership { readonly createdPatchEntry: boolean; readonly baseConfig?: Readonly<Record<string, unknown>>; readonly roots: readonly string[]; }
 
 export class VscodeHarnessProfileManager implements HarnessProfileManager {
   public constructor(private readonly storage: VscodeMarketplaceStorage, private readonly globalRoot = homedir(), private readonly dshHome = process.env.DSH_HOME || join(homedir(), ".dsh")) {}
@@ -43,6 +45,89 @@ export class VscodeHarnessProfileManager implements HarnessProfileManager {
     const payload = this.payloadPath(payloadRelativePath);
     await this.assertProfileDependency(profile, bundleName, payload, false);
     await this.run(["plugin", "--profile", profile, "remove", bundleName]);
+  }
+
+  public async addPresetRoot(profile: string, bundleRelativePath: string, presetRoot: string, alreadyOwned: boolean): Promise<void> {
+    const root = this.presetPath(bundleRelativePath, presetRoot);
+    const patch = await this.readProfilePatch(profile);
+    const previous = await this.readPresetOwnership(profile);
+    if (previous?.roots.includes(root) && !alreadyOwned) throw new Error("This Harness preset root is already owned by another Marketplace installation.");
+    const createdPatchEntry = previous?.createdPatchEntry ?? !hasHarnessPresetPatchEntry(patch);
+    const baseConfig = previous?.baseConfig ?? (createdPatchEntry ? await this.resolveBasePresetConfig(profile) : undefined);
+    const next = addHarnessPresetRoot(patch, root, alreadyOwned || previous?.roots.includes(root) === true, baseConfig);
+    await this.writeProfilePatch(profile, next.content);
+    await this.writePresetOwnership(profile, { createdPatchEntry, ...(baseConfig ? { baseConfig } : {}), roots: previous?.roots.includes(root) ? previous.roots : [...(previous?.roots ?? []), root] });
+  }
+
+  public async removePresetRoot(profile: string, bundleRelativePath: string, presetRoot: string): Promise<void> {
+    const root = this.presetPath(bundleRelativePath, presetRoot);
+    const ownership = await this.readPresetOwnership(profile);
+    if (ownership && !ownership.roots.includes(root)) return;
+    const remaining = ownership?.roots.filter((item) => item !== root) ?? [];
+    const next = removeHarnessPresetRoot(await this.readProfilePatch(profile), root, ownership?.createdPatchEntry === true && remaining.length === 0, ownership?.baseConfig);
+    if (next) await this.writeProfilePatch(profile, next.content);
+    if (ownership && remaining.length === 0) await this.removePresetOwnership(profile);
+    else if (ownership) await this.writePresetOwnership(profile, { ...ownership, roots: remaining });
+  }
+
+  private ownershipPath(profile: string): vscode.Uri { return vscode.Uri.file(join(this.dshHome, "profiles", profile, ".ai-marketplace-agent-presets.json")); }
+
+  private async readPresetOwnership(profile: string): Promise<PresetRootOwnership | undefined> {
+    try {
+      const value: unknown = JSON.parse(Buffer.from(await vscode.workspace.fs.readFile(this.ownershipPath(profile))).toString("utf8"));
+      if (!isRecord(value) || value.version !== 1 || typeof value.createdPatchEntry !== "boolean" || !Array.isArray(value.roots) || value.roots.some((item) => typeof item !== "string")) throw new Error("Marketplace agent-preset ownership state is invalid.");
+      return { createdPatchEntry: value.createdPatchEntry, ...(isRecord(value.baseConfig) ? { baseConfig: value.baseConfig } : {}), roots: value.roots as string[] };
+    } catch (error) { if (isMissing(error)) return undefined; throw error; }
+  }
+
+  private async writePresetOwnership(profile: string, state: PresetRootOwnership): Promise<void> {
+    const path = this.ownershipPath(profile);
+    const temporary = vscode.Uri.file(`${path.fsPath}.ai-marketplace-${Date.now()}.tmp`);
+    await vscode.workspace.fs.writeFile(temporary, Buffer.from(`${JSON.stringify({ version: 1, ...state }, null, 2)}\n`, "utf8"));
+    try { await vscode.workspace.fs.rename(temporary, path, { overwrite: true }); }
+    finally { await vscode.workspace.fs.delete(temporary, { useTrash: false }).then(() => undefined, () => undefined); }
+  }
+
+  private async removePresetOwnership(profile: string): Promise<void> { await vscode.workspace.fs.delete(this.ownershipPath(profile), { useTrash: false }).then(() => undefined, () => undefined); }
+
+  private async resolveBasePresetConfig(profile: string): Promise<Readonly<Record<string, unknown>> | undefined> {
+    const path = join(this.dshHome, "profiles", profile, "package.json");
+    let manifest: unknown;
+    try { manifest = JSON.parse(Buffer.from(await vscode.workspace.fs.readFile(vscode.Uri.file(path))).toString("utf8")); }
+    catch (error) { if (isMissing(error)) return undefined; throw new Error(`Unable to inspect DeepSeek Harness profile '${profile}'.`); }
+    if (!isRecord(manifest) || !isRecord(manifest.dsh) || !isRecord(manifest.dsh.profile) || !Array.isArray(manifest.dsh.profile.bundles)) return undefined;
+    const layers: string[] = [];
+    for (const bundle of manifest.dsh.profile.bundles) {
+      if (typeof bundle !== "string" || !bundlePattern.test(bundle)) continue;
+      const patch = vscode.Uri.file(join(this.dshHome, "profiles", profile, "node_modules", ...bundle.split("/"), "cordis.patch.yml"));
+      try { layers.push(Buffer.from(await vscode.workspace.fs.readFile(patch)).toString("utf8")); }
+      catch (error) { if (!isMissing(error)) throw error; }
+    }
+    return resolveHarnessPresetConfig(layers);
+  }
+
+  private presetPath(bundleRelativePath: string, presetRoot: string): string {
+    if (!presetRoot || presetRoot.split(/[\\/]/).some((part) => part === ".." || part === ".")) throw new Error("Unsafe Harness preset root path.");
+    const bundle = this.payloadPath(bundleRelativePath);
+    const root = resolve(bundle, presetRoot);
+    const within = relative(bundle, root);
+    if (!within || within.startsWith("..") || isAbsolute(within)) throw new Error("Harness preset root escapes its installed bundle.");
+    return root.replaceAll("\\", "/");
+  }
+
+  private async readProfilePatch(profile: string): Promise<string | undefined> {
+    if (!profilePattern.test(profile)) throw new Error("Invalid DeepSeek Harness profile name.");
+    const path = vscode.Uri.file(join(this.dshHome, "profiles", profile, "cordis.patch.yml"));
+    try { return Buffer.from(await vscode.workspace.fs.readFile(path)).toString("utf8"); }
+    catch (error) { if (isMissing(error)) return undefined; throw new Error(`Unable to inspect DeepSeek Harness profile '${profile}'.`); }
+  }
+
+  private async writeProfilePatch(profile: string, content: string): Promise<void> {
+    const path = vscode.Uri.file(join(this.dshHome, "profiles", profile, "cordis.patch.yml"));
+    const temporary = vscode.Uri.file(`${path.fsPath}.ai-marketplace-${Date.now()}.tmp`);
+    await vscode.workspace.fs.writeFile(temporary, Buffer.from(content, "utf8"));
+    try { await vscode.workspace.fs.rename(temporary, path, { overwrite: true }); }
+    finally { await vscode.workspace.fs.delete(temporary, { useTrash: false }).then(() => undefined, () => undefined); }
   }
 
   private payloadPath(relativePath: string): string {

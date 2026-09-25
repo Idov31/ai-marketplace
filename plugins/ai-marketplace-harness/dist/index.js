@@ -1503,7 +1503,7 @@ var require_stringify = __commonJS({
         props.push(doc.directives.tagString(tag));
       return props.join(" ");
     }
-    function stringify(item, ctx, onComment, onChompKeep) {
+    function stringify2(item, ctx, onComment, onChompKeep) {
       if (identity.isPair(item))
         return item.toString(ctx, onComment, onChompKeep);
       if (identity.isAlias(item)) {
@@ -1532,7 +1532,7 @@ var require_stringify = __commonJS({
 ${ctx.indent}${str}`;
     }
     exports.createStringifyContext = createStringifyContext;
-    exports.stringify = stringify;
+    exports.stringify = stringify2;
   }
 });
 
@@ -1542,7 +1542,7 @@ var require_stringifyPair = __commonJS({
     "use strict";
     var identity = require_identity();
     var Scalar = require_Scalar();
-    var stringify = require_stringify();
+    var stringify2 = require_stringify();
     var stringifyComment = require_stringifyComment();
     function stringifyPair({ key, value }, ctx, onComment, onChompKeep) {
       const { allNullValues, doc, indent, indentStep, options: { commentString, indentSeq, simpleKeys } } = ctx;
@@ -1564,7 +1564,7 @@ var require_stringifyPair = __commonJS({
       });
       let keyCommentDone = false;
       let chompKeep = false;
-      let str = stringify.stringify(key, ctx, () => keyCommentDone = true, () => chompKeep = true);
+      let str = stringify2.stringify(key, ctx, () => keyCommentDone = true, () => chompKeep = true);
       if (!explicitKey && !ctx.inFlow && str.length > 1024) {
         if (simpleKeys)
           throw new Error("With simple keys, single line scalar must not span more than 1024 characters");
@@ -1616,7 +1616,7 @@ ${indent}:`;
         ctx.indent = ctx.indent.substring(2);
       }
       let valueCommentDone = false;
-      const valueStr = stringify.stringify(value, ctx, () => valueCommentDone = true, () => chompKeep = true);
+      const valueStr = stringify2.stringify(value, ctx, () => valueCommentDone = true, () => chompKeep = true);
       let ws = " ";
       if (keyComment || vsb || vcb) {
         ws = vsb ? "\n" : "";
@@ -1757,7 +1757,7 @@ var require_addPairToJSMap = __commonJS({
     "use strict";
     var log = require_log();
     var merge = require_merge();
-    var stringify = require_stringify();
+    var stringify2 = require_stringify();
     var identity = require_identity();
     var toJS = require_toJS();
     function addPairToJSMap(ctx, map, { key, value }) {
@@ -1793,7 +1793,7 @@ var require_addPairToJSMap = __commonJS({
       if (typeof jsKey !== "object")
         return String(jsKey);
       if (identity.isNode(key) && ctx?.doc) {
-        const strCtx = stringify.createStringifyContext(ctx.doc, {});
+        const strCtx = stringify2.createStringifyContext(ctx.doc, {});
         strCtx.anchors = /* @__PURE__ */ new Set();
         for (const node of ctx.anchors.keys())
           strCtx.anchors.add(node.anchor);
@@ -1860,12 +1860,12 @@ var require_stringifyCollection = __commonJS({
   "node_modules/yaml/dist/stringify/stringifyCollection.js"(exports) {
     "use strict";
     var identity = require_identity();
-    var stringify = require_stringify();
+    var stringify2 = require_stringify();
     var stringifyComment = require_stringifyComment();
     function stringifyCollection(collection, ctx, options) {
       const flow = ctx.inFlow ?? collection.flow;
-      const stringify2 = flow ? stringifyFlowCollection : stringifyBlockCollection;
-      return stringify2(collection, ctx, options);
+      const stringify3 = flow ? stringifyFlowCollection : stringifyBlockCollection;
+      return stringify3(collection, ctx, options);
     }
     function stringifyBlockCollection({ comment, items }, ctx, { blockItemPrefix, flowChars, itemIndent, onChompKeep, onComment }) {
       const { indent, options: { commentString } } = ctx;
@@ -1890,7 +1890,7 @@ var require_stringifyCollection = __commonJS({
           }
         }
         chompKeep = false;
-        let str2 = stringify.stringify(item, itemCtx, () => comment2 = null, () => chompKeep = true);
+        let str2 = stringify2.stringify(item, itemCtx, () => comment2 = null, () => chompKeep = true);
         if (comment2)
           str2 += stringifyComment.lineComment(str2, itemIndent, commentString(comment2));
         if (chompKeep && comment2)
@@ -1957,7 +1957,7 @@ ${indent}${line}` : "\n";
         }
         if (comment)
           reqNewline = true;
-        let str = stringify.stringify(item, itemCtx, () => comment = null);
+        let str = stringify2.stringify(item, itemCtx, () => comment = null);
         reqNewline || (reqNewline = lines.length > linesAtValue || str.includes("\n"));
         if (i < items.length - 1) {
           str += ",";
@@ -3318,7 +3318,7 @@ var require_stringifyDocument = __commonJS({
   "node_modules/yaml/dist/stringify/stringifyDocument.js"(exports) {
     "use strict";
     var identity = require_identity();
-    var stringify = require_stringify();
+    var stringify2 = require_stringify();
     var stringifyComment = require_stringifyComment();
     function stringifyDocument(doc, options) {
       const lines = [];
@@ -3333,7 +3333,7 @@ var require_stringifyDocument = __commonJS({
       }
       if (hasDirectives)
         lines.push("---");
-      const ctx = stringify.createStringifyContext(doc, options);
+      const ctx = stringify2.createStringifyContext(doc, options);
       const { commentString } = ctx.options;
       if (doc.commentBefore) {
         if (lines.length !== 1)
@@ -3355,7 +3355,7 @@ var require_stringifyDocument = __commonJS({
           contentComment = doc.contents.comment;
         }
         const onChompKeep = contentComment ? void 0 : () => chompKeep = true;
-        let body = stringify.stringify(doc.contents, ctx, () => contentComment = null, onChompKeep);
+        let body = stringify2.stringify(doc.contents, ctx, () => contentComment = null, onChompKeep);
         if (contentComment)
           body += stringifyComment.lineComment(body, "", commentString(contentComment));
         if ((body[0] === "|" || body[0] === ">") && lines[lines.length - 1] === "---") {
@@ -3363,7 +3363,7 @@ var require_stringifyDocument = __commonJS({
         } else
           lines.push(body);
       } else {
-        lines.push(stringify.stringify(doc.contents, ctx));
+        lines.push(stringify2.stringify(doc.contents, ctx));
       }
       if (doc.directives?.docEnd) {
         if (doc.comment) {
@@ -3996,10 +3996,10 @@ var require_resolve_block_map = __commonJS({
       let offset = bm.offset;
       let commentEnd = null;
       for (const collItem of bm.items) {
-        const { start, key, sep: sep2, value } = collItem;
+        const { start, key, sep: sep3, value } = collItem;
         const keyProps = resolveProps.resolveProps(start, {
           indicator: "explicit-key-ind",
-          next: key ?? sep2?.[0],
+          next: key ?? sep3?.[0],
           offset,
           onError,
           parentIndent: bm.indent,
@@ -4013,7 +4013,7 @@ var require_resolve_block_map = __commonJS({
             else if ("indent" in key && key.indent !== bm.indent)
               onError(offset, "BAD_INDENT", startColMsg);
           }
-          if (!keyProps.anchor && !keyProps.tag && !sep2) {
+          if (!keyProps.anchor && !keyProps.tag && !sep3) {
             commentEnd = keyProps.end;
             if (keyProps.comment) {
               if (map.comment)
@@ -4037,7 +4037,7 @@ var require_resolve_block_map = __commonJS({
         ctx.atKey = false;
         if (utilMapIncludes.mapIncludes(ctx, map.items, keyNode))
           onError(keyStart, "DUPLICATE_KEY", "Map keys must be unique");
-        const valueProps = resolveProps.resolveProps(sep2 ?? [], {
+        const valueProps = resolveProps.resolveProps(sep3 ?? [], {
           indicator: "map-value-ind",
           next: value,
           offset: keyNode.range[2],
@@ -4053,7 +4053,7 @@ var require_resolve_block_map = __commonJS({
             if (ctx.options.strict && keyProps.start < valueProps.found.offset - 1024)
               onError(keyNode.range, "KEY_OVER_1024_CHARS", "The : indicator must be at most 1024 chars after the start of an implicit block mapping key");
           }
-          const valueNode = value ? composeNode(ctx, value, valueProps, onError) : composeEmptyNode(ctx, offset, sep2, null, valueProps, onError);
+          const valueNode = value ? composeNode(ctx, value, valueProps, onError) : composeEmptyNode(ctx, offset, sep3, null, valueProps, onError);
           if (ctx.schema.compat)
             utilFlowIndentCheck.flowIndentCheck(bm.indent, value, onError);
           offset = valueNode.range[2];
@@ -4144,7 +4144,7 @@ var require_resolve_end = __commonJS({
       let comment = "";
       if (end) {
         let hasSpace = false;
-        let sep2 = "";
+        let sep3 = "";
         for (const token of end) {
           const { source, type } = token;
           switch (type) {
@@ -4158,13 +4158,13 @@ var require_resolve_end = __commonJS({
               if (!comment)
                 comment = cb;
               else
-                comment += sep2 + cb;
-              sep2 = "";
+                comment += sep3 + cb;
+              sep3 = "";
               break;
             }
             case "newline":
               if (comment)
-                sep2 += source;
+                sep3 += source;
               hasSpace = true;
               break;
             default:
@@ -4207,18 +4207,18 @@ var require_resolve_flow_collection = __commonJS({
       let offset = fc.offset + fc.start.source.length;
       for (let i = 0; i < fc.items.length; ++i) {
         const collItem = fc.items[i];
-        const { start, key, sep: sep2, value } = collItem;
+        const { start, key, sep: sep3, value } = collItem;
         const props = resolveProps.resolveProps(start, {
           flow: fcName,
           indicator: "explicit-key-ind",
-          next: key ?? sep2?.[0],
+          next: key ?? sep3?.[0],
           offset,
           onError,
           parentIndent: fc.indent,
           startOnNewline: false
         });
         if (!props.found) {
-          if (!props.anchor && !props.tag && !sep2 && !value) {
+          if (!props.anchor && !props.tag && !sep3 && !value) {
             if (i === 0 && props.comma)
               onError(props.comma, "UNEXPECTED_TOKEN", `Unexpected , in ${fcName}`);
             else if (i < fc.items.length - 1)
@@ -4272,8 +4272,8 @@ var require_resolve_flow_collection = __commonJS({
             }
           }
         }
-        if (!isMap2 && !sep2 && !props.found) {
-          const valueNode = value ? composeNode(ctx, value, props, onError) : composeEmptyNode(ctx, props.end, sep2, null, props, onError);
+        if (!isMap2 && !sep3 && !props.found) {
+          const valueNode = value ? composeNode(ctx, value, props, onError) : composeEmptyNode(ctx, props.end, sep3, null, props, onError);
           coll.items.push(valueNode);
           offset = valueNode.range[2];
           if (isBlock(value))
@@ -4285,7 +4285,7 @@ var require_resolve_flow_collection = __commonJS({
           if (isBlock(key))
             onError(keyNode.range, "BLOCK_IN_FLOW", blockMsg);
           ctx.atKey = false;
-          const valueProps = resolveProps.resolveProps(sep2 ?? [], {
+          const valueProps = resolveProps.resolveProps(sep3 ?? [], {
             flow: fcName,
             indicator: "map-value-ind",
             next: value,
@@ -4296,8 +4296,8 @@ var require_resolve_flow_collection = __commonJS({
           });
           if (valueProps.found) {
             if (!isMap2 && !props.found && ctx.options.strict) {
-              if (sep2)
-                for (const st of sep2) {
+              if (sep3)
+                for (const st of sep3) {
                   if (st === valueProps.found)
                     break;
                   if (st.type === "newline") {
@@ -4314,7 +4314,7 @@ var require_resolve_flow_collection = __commonJS({
             else
               onError(valueProps.start, "MISSING_CHAR", `Missing , or : between ${fcName} items`);
           }
-          const valueNode = value ? composeNode(ctx, value, valueProps, onError) : valueProps.found ? composeEmptyNode(ctx, valueProps.end, sep2, null, valueProps, onError) : null;
+          const valueNode = value ? composeNode(ctx, value, valueProps, onError) : valueProps.found ? composeEmptyNode(ctx, valueProps.end, sep3, null, valueProps, onError) : null;
           if (valueNode) {
             if (isBlock(value))
               onError(valueNode.range, "BLOCK_IN_FLOW", blockMsg);
@@ -4494,7 +4494,7 @@ var require_resolve_block_scalar = __commonJS({
           chompStart = i + 1;
       }
       let value = "";
-      let sep2 = "";
+      let sep3 = "";
       let prevMoreIndented = false;
       for (let i = 0; i < contentStart; ++i)
         value += lines[i][0].slice(trimIndent) + "\n";
@@ -4511,24 +4511,24 @@ var require_resolve_block_scalar = __commonJS({
           indent = "";
         }
         if (type === Scalar.Scalar.BLOCK_LITERAL) {
-          value += sep2 + indent.slice(trimIndent) + content;
-          sep2 = "\n";
+          value += sep3 + indent.slice(trimIndent) + content;
+          sep3 = "\n";
         } else if (indent.length > trimIndent || content[0] === "	") {
-          if (sep2 === " ")
-            sep2 = "\n";
-          else if (!prevMoreIndented && sep2 === "\n")
-            sep2 = "\n\n";
-          value += sep2 + indent.slice(trimIndent) + content;
-          sep2 = "\n";
+          if (sep3 === " ")
+            sep3 = "\n";
+          else if (!prevMoreIndented && sep3 === "\n")
+            sep3 = "\n\n";
+          value += sep3 + indent.slice(trimIndent) + content;
+          sep3 = "\n";
           prevMoreIndented = true;
         } else if (content === "") {
-          if (sep2 === "\n")
+          if (sep3 === "\n")
             value += "\n";
           else
-            sep2 = "\n";
+            sep3 = "\n";
         } else {
-          value += sep2 + content;
-          sep2 = " ";
+          value += sep3 + content;
+          sep3 = " ";
           prevMoreIndented = false;
         }
       }
@@ -4710,25 +4710,25 @@ var require_resolve_flow_scalar = __commonJS({
       if (!match)
         return source;
       let res = match[1];
-      let sep2 = " ";
+      let sep3 = " ";
       let pos = first.lastIndex;
       line.lastIndex = pos;
       while (match = line.exec(source)) {
         if (match[1] === "") {
-          if (sep2 === "\n")
-            res += sep2;
+          if (sep3 === "\n")
+            res += sep3;
           else
-            sep2 = "\n";
+            sep3 = "\n";
         } else {
-          res += sep2 + match[1];
-          sep2 = " ";
+          res += sep3 + match[1];
+          sep3 = " ";
         }
         pos = line.lastIndex;
       }
       const last = /[ \t]*(.*)/sy;
       last.lastIndex = pos;
       match = last.exec(source);
-      return res + sep2 + (match?.[1] ?? "");
+      return res + sep3 + (match?.[1] ?? "");
     }
     function doubleQuotedValue(source, onError) {
       let res = "";
@@ -5498,7 +5498,7 @@ var require_cst_scalar = __commonJS({
 var require_cst_stringify = __commonJS({
   "node_modules/yaml/dist/parse/cst-stringify.js"(exports) {
     "use strict";
-    var stringify = (cst) => "type" in cst ? stringifyToken(cst) : stringifyItem(cst);
+    var stringify2 = (cst) => "type" in cst ? stringifyToken(cst) : stringifyItem(cst);
     function stringifyToken(token) {
       switch (token.type) {
         case "block-scalar": {
@@ -5538,20 +5538,20 @@ var require_cst_stringify = __commonJS({
         }
       }
     }
-    function stringifyItem({ start, key, sep: sep2, value }) {
+    function stringifyItem({ start, key, sep: sep3, value }) {
       let res = "";
       for (const st of start)
         res += st.source;
       if (key)
         res += stringifyToken(key);
-      if (sep2)
-        for (const st of sep2)
+      if (sep3)
+        for (const st of sep3)
           res += st.source;
       if (value)
         res += stringifyToken(value);
       return res;
     }
-    exports.stringify = stringify;
+    exports.stringify = stringify2;
   }
 });
 
@@ -6712,18 +6712,18 @@ var require_parser = __commonJS({
         if (this.type === "map-value-ind") {
           const prev = getPrevProps(this.peek(2));
           const start = getFirstKeyStartProps(prev);
-          let sep2;
+          let sep3;
           if (scalar.end) {
-            sep2 = scalar.end;
-            sep2.push(this.sourceToken);
+            sep3 = scalar.end;
+            sep3.push(this.sourceToken);
             delete scalar.end;
           } else
-            sep2 = [this.sourceToken];
+            sep3 = [this.sourceToken];
           const map = {
             type: "block-map",
             offset: scalar.offset,
             indent: scalar.indent,
-            items: [{ start, key: scalar, sep: sep2 }]
+            items: [{ start, key: scalar, sep: sep3 }]
           };
           this.onKeyLine = true;
           this.stack[this.stack.length - 1] = map;
@@ -6876,15 +6876,15 @@ var require_parser = __commonJS({
                 } else if (isFlowToken(it.key) && !includesToken(it.sep, "newline")) {
                   const start2 = getFirstKeyStartProps(it.start);
                   const key = it.key;
-                  const sep2 = it.sep;
-                  sep2.push(this.sourceToken);
+                  const sep3 = it.sep;
+                  sep3.push(this.sourceToken);
                   delete it.key;
                   delete it.sep;
                   this.stack.push({
                     type: "block-map",
                     offset: this.offset,
                     indent: this.indent,
-                    items: [{ start: start2, key, sep: sep2 }]
+                    items: [{ start: start2, key, sep: sep3 }]
                   });
                 } else if (start.length > 0) {
                   it.sep = it.sep.concat(start, this.sourceToken);
@@ -7078,13 +7078,13 @@ var require_parser = __commonJS({
             const prev = getPrevProps(parent);
             const start = getFirstKeyStartProps(prev);
             fixFlowSeqItems(fc);
-            const sep2 = fc.end.splice(1, fc.end.length);
-            sep2.push(this.sourceToken);
+            const sep3 = fc.end.splice(1, fc.end.length);
+            sep3.push(this.sourceToken);
             const map = {
               type: "block-map",
               offset: fc.offset,
               indent: fc.indent,
-              items: [{ start, key: fc, sep: sep2 }]
+              items: [{ start, key: fc, sep: sep3 }]
             };
             this.onKeyLine = true;
             this.stack[this.stack.length - 1] = map;
@@ -7243,7 +7243,7 @@ var require_public_api = __commonJS({
         return docs;
       return Object.assign([], { empty: true }, composer$1.streamInfo());
     }
-    function parseDocument3(source, options = {}) {
+    function parseDocument4(source, options = {}) {
       const { lineCounter: lineCounter2, prettyErrors } = parseOptions(options);
       const parser$1 = new parser.Parser(lineCounter2?.addNewLine);
       const composer$1 = new composer.Composer(options);
@@ -7269,7 +7269,7 @@ var require_public_api = __commonJS({
       } else if (options === void 0 && reviver && typeof reviver === "object") {
         options = reviver;
       }
-      const doc = parseDocument3(src, options);
+      const doc = parseDocument4(src, options);
       if (!doc)
         return null;
       doc.warnings.forEach((warning) => log.warn(doc.options.logLevel, warning));
@@ -7281,7 +7281,7 @@ var require_public_api = __commonJS({
       }
       return doc.toJS(Object.assign({ reviver: _reviver }, options));
     }
-    function stringify(value, replacer, options) {
+    function stringify2(value, replacer, options) {
       let _replacer = null;
       if (typeof replacer === "function" || Array.isArray(replacer)) {
         _replacer = replacer;
@@ -7305,8 +7305,8 @@ var require_public_api = __commonJS({
     }
     exports.parse = parse;
     exports.parseAllDocuments = parseAllDocuments;
-    exports.parseDocument = parseDocument3;
-    exports.stringify = stringify;
+    exports.parseDocument = parseDocument4;
+    exports.stringify = stringify2;
   }
 });
 
@@ -7838,7 +7838,7 @@ var require_validation = __commonJS({
       return packages_1.platforms.includes(value);
     }
     function validateMarketplaceManifest2(value, source) {
-      if (!isRecord7(value)) {
+      if (!isRecord9(value)) {
         throw new ValidationError2(`AI Marketplace manifest at ${source} must be an object.`);
       }
       const schemaVersion = readPositiveInteger2(value, "schema_version", source);
@@ -7960,7 +7960,7 @@ var require_validation = __commonJS({
       if (!Array.isArray(value) || value.length === 0)
         throw new ValidationError2(`Manifest at ${source} has invalid 'migrations'. Expected a non-empty array.`);
       const migrations = value.map((item, index) => {
-        if (!isRecord7(item) || !isRecord7(item["from"])) {
+        if (!isRecord9(item) || !isRecord9(item["from"])) {
           throw new ValidationError2(`Manifest at ${source} migration ${index + 1} must contain only a 'from' mapping.`);
         }
         const from = item["from"];
@@ -8131,11 +8131,11 @@ var require_validation = __commonJS({
           diagnostics.push({ kind: "deprecated-field", field: path2, ...lifecycle.replacement ? { replacement: lifecycle.replacement } : {} });
         if (disposition === "prefer-replacement")
           continue;
-        if (isRecord7(child))
+        if (isRecord9(child))
           visitKnownFields2(root, child, path2, schemaVersion, source, diagnostics);
         else if (Array.isArray(child) && path2 === "history.migrations") {
           for (const item of child)
-            if (isRecord7(item))
+            if (isRecord9(item))
               visitKnownFields2(root, item, `${path2}[]`, schemaVersion, source, diagnostics);
         }
       }
@@ -8143,7 +8143,7 @@ var require_validation = __commonJS({
     function hasManifestPath2(root, path2) {
       let current = root;
       for (const segment of path2.replaceAll("[]", "").split(".")) {
-        if (!isRecord7(current) || !(segment in current))
+        if (!isRecord9(current) || !(segment in current))
           return false;
         current = current[segment];
       }
@@ -8151,7 +8151,7 @@ var require_validation = __commonJS({
     }
     function readRecord2(record, key, source) {
       const value = record[key];
-      if (!isRecord7(value))
+      if (!isRecord9(value))
         throw new ValidationError2(`Manifest at ${source} must include '${key}' as a mapping.`);
       return value;
     }
@@ -8159,7 +8159,7 @@ var require_validation = __commonJS({
       const value = record[key];
       if (value === void 0)
         return void 0;
-      if (!isRecord7(value))
+      if (!isRecord9(value))
         throw new ValidationError2(`Manifest at ${source} has invalid '${key}'. Expected a mapping.`);
       return value;
     }
@@ -8189,7 +8189,7 @@ var require_validation = __commonJS({
       if (new Set(normalized).size !== normalized.length)
         throw new ValidationError2(`Manifest at ${source} contains duplicate '${path2}' entries.`);
     }
-    function isRecord7(value) {
+    function isRecord9(value) {
       return typeof value === "object" && value !== null && !Array.isArray(value);
     }
   }
@@ -8218,11 +8218,11 @@ var require_marketplaceYaml = __commonJS({
       } catch (error) {
         throw new validation_1.ValidationError(`AI Marketplace manifest at ${source} contains unsafe YAML aliases: ${error instanceof Error ? error.message : String(error)}`);
       }
-      if (!isRecord7(value))
+      if (!isRecord9(value))
         throw new validation_1.ValidationError(`AI Marketplace manifest at ${source} must contain a top-level mapping.`);
       return value;
     }
-    function isRecord7(value) {
+    function isRecord9(value) {
       return typeof value === "object" && value !== null && !Array.isArray(value);
     }
   }
@@ -8572,7 +8572,7 @@ var require_repositoryHttp = __commonJS({
       return text.replace(/\s+/g, " ").trim().slice(0, 600);
     }
     async function delay2(milliseconds) {
-      await new Promise((resolve5) => setTimeout(resolve5, milliseconds));
+      await new Promise((resolve6) => setTimeout(resolve6, milliseconds));
     }
   }
 });
@@ -9540,7 +9540,7 @@ var require_installedState = __commonJS({
       return typeof record.id === "string" && typeof record.type === "string" && typeof record.platform === "string" && packages_1.platforms.includes(record.platform) && typeof record.scope === "string" && typeof record.version === "string" && typeof record.sourceRepo === "string" && typeof record.sourceBranch === "string" && typeof record.sourcePath === "string" && typeof record.installedPath === "string" && typeof record.installedAt === "string" && (record.sourceId === void 0 || typeof record.sourceId === "string") && (record.qualifiedName === void 0 || typeof record.qualifiedName === "string") && (record.group === void 0 || typeof record.group === "string") && (record.managedConfig === void 0 || isManagedConfigContribution2(record.managedConfig)) && (record.managedPayloadPath === void 0 || typeof record.managedPayloadPath === "string") && (record.harnessBundle === void 0 || isHarnessBundle2(record.harnessBundle)) && (record.harnessProfile === void 0 || typeof record.harnessProfile === "string" && /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/.test(record.harnessProfile)) && (record.hotloaded === void 0 || typeof record.hotloaded === "boolean") && (record.hotloadRequestedAt === void 0 || typeof record.hotloadRequestedAt === "string") && (record.offloadRequestedAt === void 0 || typeof record.offloadRequestedAt === "string") && (record.autoUpdate === void 0 || typeof record.autoUpdate === "boolean") && (record.autoUpdateChangedAt === void 0 || typeof record.autoUpdateChangedAt === "string") && (record.sourceRevision === void 0 || typeof record.sourceRevision === "string") && (record.revertedAt === void 0 || typeof record.revertedAt === "string") && (record.revertedFromVersion === void 0 || typeof record.revertedFromVersion === "string") && (record.migrationHistory === void 0 || Array.isArray(record.migrationHistory) && record.migrationHistory.every(isMigrationHistoryEntry2));
     }
     function isHarnessBundle2(value) {
-      return isPlainRecord2(value) && typeof value.profile === "string" && typeof value.name === "string" && typeof value.contentSha256 === "string" && /^[0-9a-f]{64}$/.test(value.contentSha256) && Array.isArray(value.files) && value.files.every((file) => isPlainRecord2(file) && typeof file.path === "string" && typeof file.sha256 === "string" && /^[0-9a-f]{64}$/.test(file.sha256));
+      return isPlainRecord2(value) && typeof value.profile === "string" && typeof value.name === "string" && typeof value.contentSha256 === "string" && /^[0-9a-f]{64}$/.test(value.contentSha256) && (value.presetRoot === void 0 || typeof value.presetRoot === "string" && value.presetRoot.length > 0) && Array.isArray(value.files) && value.files.every((file) => isPlainRecord2(file) && typeof file.path === "string" && typeof file.sha256 === "string" && /^[0-9a-f]{64}$/.test(file.sha256));
     }
     function isMigrationHistoryEntry2(value) {
       if (!isPlainRecord2(value) || typeof value.migratedAt !== "string")
@@ -9580,10 +9580,20 @@ var require_packageFiles = __commonJS({
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.filterPackageFilesForPlatform = filterPackageFilesForPlatform2;
     function filterPackageFilesForPlatform2(files, platform) {
-      if (platform === "codex") {
-        return files;
+      const isHarnessBundle2 = files.some((file) => file.relativePath === "package.json" && declaresHarnessBundle2(file.content));
+      return files.filter((file) => (platform === "codex" || !isOpenAIYaml2(file.relativePath)) && !(platform !== "deepseek-harness" && isHarnessBundle2 && isHarnessOnlyFile2(file.relativePath)));
+    }
+    function declaresHarnessBundle2(content) {
+      try {
+        const value = JSON.parse(Buffer.from(content).toString("utf8"));
+        return typeof value === "object" && value !== null && "dsh" in value && typeof value.dsh === "object" && value.dsh !== null && "bundle" in value.dsh;
+      } catch {
+        return false;
       }
-      return files.filter((file) => !isOpenAIYaml2(file.relativePath));
+    }
+    function isHarnessOnlyFile2(relativePath) {
+      const path2 = relativePath.replaceAll("\\", "/");
+      return path2 === "package.json" || path2 === "cordis.patch.yml" || path2 === "index.js" || path2 === "agent.js" || path2 === "instructions.md" || path2.startsWith("presets/");
     }
     function isOpenAIYaml2(relativePath) {
       const parts = relativePath.replaceAll("\\", "/").split("/");
@@ -9729,12 +9739,12 @@ var require_mcpConfig = __commonJS({
       } catch {
         throw new validation_1.ValidationError(`MCP entrypoint at ${source} must be valid JSON.`);
       }
-      if (!isRecord7(parsed)) {
+      if (!isRecord9(parsed)) {
         throw new validation_1.ValidationError(`MCP entrypoint at ${source} must be a JSON object.`);
       }
-      const platformConfig = isRecord7(parsed[platform]) ? parsed[platform] : parsed;
+      const platformConfig = isRecord9(parsed[platform]) ? parsed[platform] : parsed;
       const servers = platform === "codex" ? platformConfig["mcp_servers"] ?? platformConfig["mcpServers"] : platformConfig["mcpServers"];
-      if (!isRecord7(servers)) {
+      if (!isRecord9(servers)) {
         if (looksLikeServerConfig2(platformConfig)) {
           return { serverName: packageId, serverConfig: normalizeServerConfig2(platform, platformConfig) };
         }
@@ -9745,14 +9755,14 @@ var require_mcpConfig = __commonJS({
         throw new validation_1.ValidationError(`MCP entrypoint at ${source} must define exactly one MCP server.`);
       }
       const serverConfig = servers[serverNames[0]];
-      if (!isRecord7(serverConfig)) {
+      if (!isRecord9(serverConfig)) {
         throw new validation_1.ValidationError(`MCP entrypoint at ${source} must define its MCP server as a JSON object.`);
       }
       return { serverName: packageId, serverConfig: normalizeServerConfig2(platform, serverConfig) };
     }
     function upsertJsonMcpServer2(existingContent, serverName, serverConfig, expectedExisting) {
       const config = parseExistingJsonObject2(existingContent, "MCP configuration");
-      const existingServers = isRecord7(config["mcpServers"]) ? config["mcpServers"] : {};
+      const existingServers = isRecord9(config["mcpServers"]) ? config["mcpServers"] : {};
       const existing = existingServers[serverName];
       if (existing !== void 0 && (!expectedExisting || !sameJsonValue2(existing, expectedExisting))) {
         throw new validation_1.ValidationError(`MCP server '${serverName}' already exists and is not managed by AI Marketplace.`);
@@ -9768,7 +9778,7 @@ var require_mcpConfig = __commonJS({
     }
     function removeJsonMcpServer2(existingContent, serverName, expectedServerConfig) {
       const config = parseExistingJsonObject2(existingContent, "MCP configuration");
-      if (!isRecord7(config["mcpServers"]) || !(serverName in config["mcpServers"])) {
+      if (!isRecord9(config["mcpServers"]) || !(serverName in config["mcpServers"])) {
         return existingContent;
       }
       if (expectedServerConfig && !sameJsonValue2(config["mcpServers"][serverName], expectedServerConfig)) {
@@ -9786,7 +9796,7 @@ var require_mcpConfig = __commonJS({
       } catch {
         throw new validation_1.ValidationError(`Claude hook entrypoint at ${source} must be valid JSON.`);
       }
-      if (!isRecord7(parsed) || !isRecord7(parsed["hooks"])) {
+      if (!isRecord9(parsed) || !isRecord9(parsed["hooks"])) {
         throw new validation_1.ValidationError(`Claude hook entrypoint at ${source} must contain a 'hooks' object.`);
       }
       const hooks = {};
@@ -9800,7 +9810,7 @@ var require_mcpConfig = __commonJS({
     }
     function upsertClaudeHookConfig2(existingContent, contribution) {
       const config = parseExistingJsonObject2(existingContent, ".claude/settings.json");
-      const existingHooks = isRecord7(config["hooks"]) ? config["hooks"] : {};
+      const existingHooks = isRecord9(config["hooks"]) ? config["hooks"] : {};
       const hooks = { ...existingHooks };
       for (const [event, entries] of Object.entries(contribution)) {
         const existing = Array.isArray(hooks[event]) ? hooks[event] : [];
@@ -9811,7 +9821,7 @@ var require_mcpConfig = __commonJS({
     }
     function removeClaudeHookConfig2(existingContent, contribution) {
       const config = parseExistingJsonObject2(existingContent, ".claude/settings.json");
-      if (!isRecord7(config["hooks"])) {
+      if (!isRecord9(config["hooks"])) {
         return existingContent;
       }
       const hooks = { ...config["hooks"] };
@@ -9884,7 +9894,7 @@ var require_mcpConfig = __commonJS({
       } catch {
         throw new validation_1.ValidationError(`${source} must contain valid JSON.`);
       }
-      if (!isRecord7(parsed)) {
+      if (!isRecord9(parsed)) {
         throw new validation_1.ValidationError(`${source} must contain a JSON object.`);
       }
       return parsed;
@@ -9899,7 +9909,7 @@ var require_mcpConfig = __commonJS({
       lines.push(`[${path2.map(quoteTomlKey2).join(".")}]`);
       const nested = [];
       for (const [key, value] of Object.entries(record)) {
-        if (isRecord7(value)) {
+        if (isRecord9(value)) {
           nested.push([key, value]);
           continue;
         }
@@ -9988,7 +9998,7 @@ var require_mcpConfig = __commonJS({
     function looksLikeServerConfig2(value) {
       return typeof value["command"] === "string" || typeof value["url"] === "string";
     }
-    function isRecord7(value) {
+    function isRecord9(value) {
       return typeof value === "object" && value !== null && !Array.isArray(value);
     }
     function sameJsonValue2(left, right) {
@@ -9998,7 +10008,7 @@ var require_mcpConfig = __commonJS({
       if (Array.isArray(value)) {
         return value.map(canonicalize2);
       }
-      if (isRecord7(value)) {
+      if (isRecord9(value)) {
         return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonicalize2(value[key])]));
       }
       return value;
@@ -10016,9 +10026,10 @@ var require_harnessBundle = __commonJS({
     var yaml_1 = require_dist();
     var pathPlanning_1 = require_pathPlanning();
     var validation_1 = require_validation();
+    var mcpScripts_1 = require_mcpScripts();
     function validateHarnessBundle2(pkg, files) {
-      if (pkg.manifest.entrypoint !== "package.json") {
-        throw new validation_1.ValidationError(`DeepSeek Harness ${pkg.manifest.type} package '${pkg.manifest.id}' must use package.json as its entrypoint.`);
+      if (!files.some((file) => file.relativePath === pkg.manifest.entrypoint)) {
+        throw new validation_1.ValidationError(`DeepSeek Harness package '${pkg.manifest.id}' is missing its catalog entrypoint '${pkg.manifest.entrypoint}'.`);
       }
       const entrypoint = files.find((file) => file.relativePath === "package.json");
       if (!entrypoint)
@@ -10029,9 +10040,11 @@ var require_harnessBundle = __commonJS({
       } catch {
         throw new validation_1.ValidationError(`DeepSeek Harness package '${pkg.manifest.id}' has invalid package.json.`);
       }
-      if (!isRecord7(parsed) || typeof parsed.name !== "string" || !/^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+$/.test(parsed.name) || parsed.version !== pkg.manifest.version || !isRecord7(parsed.dsh) || !isRecord7(parsed.dsh.bundle)) {
+      if (!isRecord9(parsed) || typeof parsed.name !== "string" || !/^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+$/.test(parsed.name) || parsed.version !== pkg.manifest.version || !isRecord9(parsed.dsh) || !isRecord9(parsed.dsh.bundle)) {
         throw new validation_1.ValidationError(`DeepSeek Harness package '${pkg.manifest.id}' requires a matching npm name, version, and dsh.bundle declaration.`);
       }
+      if (pkg.manifest.type === "mcp")
+        (0, mcpScripts_1.assertMcpPackageScripts)(pkg, files);
       const patch = parsed.dsh.bundle.patch;
       if (typeof patch !== "string")
         throw new validation_1.ValidationError(`DeepSeek Harness package '${pkg.manifest.id}' requires dsh.bundle.patch.`);
@@ -10047,14 +10060,14 @@ var require_harnessBundle = __commonJS({
       if (document.errors.length > 0 || !Array.isArray(patchValue) || patchValue.length === 0) {
         throw new validation_1.ValidationError(`DeepSeek Harness package '${pkg.manifest.id}' has an invalid or empty Cordis patch.`);
       }
-      const rows = patchValue.flatMap((operation) => isRecord7(operation) && Array.isArray(operation.insert) ? operation.insert : []);
+      const rows = patchValue.flatMap((operation) => isRecord9(operation) && Array.isArray(operation.insert) ? operation.insert : []);
       const expectedName = parsed.name;
-      const hasContribution = rows.some((row) => isRecord7(row) && typeof row.id === "string" && row.id.length > 0 && typeof row.name === "string" && (row.name === expectedName || row.name.startsWith(`${expectedName}/`) || pkg.manifest.type === "mcp" && row.name === "@deepseek-ai/dsh-mcp-client"));
+      const hasContribution = rows.some((row) => isRecord9(row) && typeof row.id === "string" && row.id.length > 0 && typeof row.name === "string" && (row.name === expectedName || row.name.startsWith(`${expectedName}/`) || pkg.manifest.type === "mcp" && row.name === "@deepseek-ai/dsh-mcp-client"));
       if (!hasContribution) {
         throw new validation_1.ValidationError(`DeepSeek Harness ${pkg.manifest.type} package '${pkg.manifest.id}' must insert a plugin contribution from its bundle.`);
       }
       const scripts = parsed.scripts;
-      if (isRecord7(scripts) && ["preinstall", "install", "postinstall", "prepare"].some((key) => key in scripts)) {
+      if (isRecord9(scripts) && ["preinstall", "install", "postinstall", "prepare"].some((key) => key in scripts)) {
         throw new validation_1.ValidationError(`DeepSeek Harness package '${pkg.manifest.id}' must be prebuilt and contain no install lifecycle scripts.`);
       }
       const paths = /* @__PURE__ */ new Set();
@@ -10073,7 +10086,7 @@ var require_harnessBundle = __commonJS({
         throw new validation_1.ValidationError(`DeepSeek Harness package '${pkg.manifest.id}' requires a prebuilt main module.`);
       }
       const exportsValue = parsed.exports;
-      if (exportsValue !== void 0 && !isRecord7(exportsValue) && typeof exportsValue !== "string") {
+      if (exportsValue !== void 0 && !isRecord9(exportsValue) && typeof exportsValue !== "string") {
         throw new validation_1.ValidationError(`DeepSeek Harness package '${pkg.manifest.id}' has invalid exports.`);
       }
       const checkReference = (reference) => {
@@ -10083,7 +10096,7 @@ var require_harnessBundle = __commonJS({
           const target = (0, pathPlanning_1.safeJoinRelative)(reference.slice(2));
           if (!paths.has(target))
             throw new validation_1.ValidationError(`DeepSeek Harness package '${pkg.manifest.id}' is missing referenced file '${target}'.`);
-        } else if (isRecord7(reference)) {
+        } else if (isRecord9(reference)) {
           for (const nested of Object.values(reference))
             checkReference(nested);
         } else {
@@ -10092,16 +10105,16 @@ var require_harnessBundle = __commonJS({
       };
       if (exportsValue !== void 0)
         checkReference(exportsValue);
-      if (isRecord7(parsed.dsh.client)) {
-        if (!isRecord7(exportsValue) || exportsValue["./client"] === void 0) {
+      if (isRecord9(parsed.dsh.client)) {
+        if (!isRecord9(exportsValue) || exportsValue["./client"] === void 0) {
           throw new validation_1.ValidationError(`DeepSeek Harness package '${pkg.manifest.id}' declares dsh.client without a client export.`);
         }
       }
       for (const row of rows) {
-        if (!isRecord7(row) || typeof row.name !== "string" || !row.name.startsWith(`${expectedName}/`))
+        if (!isRecord9(row) || typeof row.name !== "string" || !row.name.startsWith(`${expectedName}/`))
           continue;
         const subpath = `.${row.name.slice(expectedName.length)}`;
-        if (!isRecord7(exportsValue) || exportsValue[subpath] === void 0) {
+        if (!isRecord9(exportsValue) || exportsValue[subpath] === void 0) {
           throw new validation_1.ValidationError(`DeepSeek Harness package '${pkg.manifest.id}' has no export for patch plugin '${row.name}'.`);
         }
       }
@@ -10109,9 +10122,19 @@ var require_harnessBundle = __commonJS({
       for (const file of [...files].sort((left, right) => left.relativePath.localeCompare(right.relativePath))) {
         digest.update(file.relativePath).update("\0").update(file.content).update("\0");
       }
-      return { name: parsed.name, patchPath, contentSha256: digest.digest("hex") };
+      const presetRootValue = parsed.dsh.bundle.presetRoot;
+      let presetRoot;
+      if (pkg.manifest.type === "agent") {
+        if (typeof presetRootValue !== "string")
+          throw new validation_1.ValidationError(`DeepSeek Harness agent '${pkg.manifest.id}' must declare dsh.bundle.presetRoot.`);
+        presetRoot = (0, pathPlanning_1.safeJoinRelative)(presetRootValue.replace(/^\.\//, ""));
+        if (![...paths].some((path2) => path2.startsWith(`${presetRoot}/`) && path2.endsWith("/agent.cordis.yml"))) {
+          throw new validation_1.ValidationError(`DeepSeek Harness agent '${pkg.manifest.id}' is missing a preset composition under '${presetRoot}'.`);
+        }
+      }
+      return { name: parsed.name, patchPath, contentSha256: digest.digest("hex"), ...presetRoot ? { presetRoot } : {} };
     }
-    function isRecord7(value) {
+    function isRecord9(value) {
       return typeof value === "object" && value !== null && !Array.isArray(value);
     }
   }
@@ -10494,18 +10517,30 @@ var require_packageInstaller = __commonJS({
         await this.assertMigrationDestinationAvailable(pkg, predecessor, targetPath);
         const profile = predecessor.harnessBundle.profile;
         const backupPath = `${predecessor.installedPath}.backup-${(0, node_crypto_1.randomUUID)()}`;
+        if (predecessor.type === "mcp")
+          await this.runMcpScript(predecessor.installedPath, mcpScripts_1.mcpUninstallScript, "migrate", "deepseek-harness");
         await this.storage.move("global", predecessor.installedPath, backupPath);
         let removed = false;
         let added = false;
+        let destinationPresetRootAdded = false;
         try {
           if (!offloaded) {
             await this.harnessProfileManager.remove(profile, predecessor.harnessBundle.name, predecessor.installedPath);
             removed = true;
+            if (predecessor.harnessBundle.presetRoot) {
+              await this.removeHarnessPresetRoot(this.harnessProfileManager, profile, predecessor.installedPath, predecessor.harnessBundle.presetRoot);
+            }
           }
           await this.replaceDirectory("global", targetPath, files);
+          if (pkg.manifest.type === "mcp")
+            await this.runMcpScript(targetPath, mcpScripts_1.mcpInstallScript, "migrate", "deepseek-harness");
           if (!offloaded) {
             await this.harnessProfileManager.add(profile, bundle.name, targetPath);
             added = true;
+            if (bundle.presetRoot) {
+              await this.addHarnessPresetRoot(this.harnessProfileManager, profile, targetPath, bundle.presetRoot, false);
+              destinationPresetRootAdded = true;
+            }
           }
           const migrated = {
             ...predecessor,
@@ -10521,6 +10556,7 @@ var require_packageInstaller = __commonJS({
               profile,
               name: bundle.name,
               contentSha256: bundle.contentSha256,
+              ...bundle.presetRoot ? { presetRoot: bundle.presetRoot } : {},
               files: files.map((file) => ({ path: file.relativePath, sha256: sha2562(file.content) }))
             },
             migrationHistory: [...predecessor.migrationHistory ?? [], {
@@ -10535,10 +10571,17 @@ var require_packageInstaller = __commonJS({
         } catch (error) {
           if (added)
             await this.harnessProfileManager.remove(profile, bundle.name, targetPath).catch(() => void 0);
+          if (destinationPresetRootAdded && bundle.presetRoot)
+            await this.removeHarnessPresetRoot(this.harnessProfileManager, profile, targetPath, bundle.presetRoot).catch(() => void 0);
           await this.storage.remove("global", targetPath).catch(() => void 0);
           await this.storage.move("global", backupPath, predecessor.installedPath).catch(() => void 0);
-          if (removed)
+          if (predecessor.type === "mcp")
+            await this.runMcpScript(predecessor.installedPath, mcpScripts_1.mcpInstallScript, "update", "deepseek-harness").catch(() => void 0);
+          if (removed) {
             await this.harnessProfileManager.add(profile, predecessor.harnessBundle.name, predecessor.installedPath).catch(() => void 0);
+            if (predecessor.harnessBundle.presetRoot)
+              await this.addHarnessPresetRoot(this.harnessProfileManager, profile, predecessor.installedPath, predecessor.harnessBundle.presetRoot, true).catch(() => void 0);
+          }
           throw error;
         }
       }
@@ -10569,14 +10612,27 @@ var require_packageInstaller = __commonJS({
         if (hadPrevious)
           await this.storage.move("global", targetPath, backupPath);
         let added = false;
+        let lifecycleInstalled = false;
+        let presetRootAdded = false;
         try {
           await this.replaceDirectory("global", targetPath, files);
+          if (pkg.manifest.type === "mcp") {
+            await this.runMcpScript(targetPath, mcpScripts_1.mcpInstallScript, previous ? revert ? "revert" : "update" : "install", "deepseek-harness");
+            lifecycleInstalled = true;
+          }
           if (!targetPath.startsWith(".offload/")) {
+            if (previous?.harnessBundle?.presetRoot && previous.harnessBundle.presetRoot !== bundle.presetRoot) {
+              await this.removeHarnessPresetRoot(manager, profile, targetPath, previous.harnessBundle.presetRoot);
+            }
             if (previous?.harnessBundle && previous.harnessBundle.name !== bundle.name) {
               await manager.remove(profile, previous.harnessBundle.name, targetPath);
             }
             await manager.add(profile, bundle.name, targetPath);
             added = true;
+            if (bundle.presetRoot) {
+              await this.addHarnessPresetRoot(manager, profile, targetPath, bundle.presetRoot, previous?.harnessBundle?.presetRoot === bundle.presetRoot);
+              presetRootAdded = true;
+            }
           }
           const installed = {
             id: pkg.manifest.id,
@@ -10594,6 +10650,7 @@ var require_packageInstaller = __commonJS({
               profile,
               name: bundle.name,
               contentSha256: bundle.contentSha256,
+              ...bundle.presetRoot ? { presetRoot: bundle.presetRoot } : {},
               files: files.map((file) => ({ path: file.relativePath, sha256: sha2562(file.content) }))
             },
             ...previous?.hotloaded === void 0 ? {} : { hotloaded: previous.hotloaded },
@@ -10606,11 +10663,20 @@ var require_packageInstaller = __commonJS({
         } catch (error) {
           if (added)
             await manager.remove(profile, bundle.name, targetPath).catch(() => void 0);
+          if (presetRootAdded && bundle.presetRoot)
+            await this.removeHarnessPresetRoot(manager, profile, targetPath, bundle.presetRoot).catch(() => void 0);
+          if (lifecycleInstalled && !hadPrevious)
+            await this.runMcpScript(targetPath, mcpScripts_1.mcpUninstallScript, "uninstall", "deepseek-harness").catch(() => void 0);
           await this.storage.remove("global", targetPath).catch(() => void 0);
           if (hadPrevious) {
             await this.storage.move("global", backupPath, targetPath).catch(() => void 0);
+            if (previous?.type === "mcp")
+              await this.runMcpScript(targetPath, mcpScripts_1.mcpInstallScript, "update", "deepseek-harness").catch(() => void 0);
             if (previous?.harnessBundle && !previous.installedPath.startsWith(".offload/")) {
               await manager.add(profile, previous.harnessBundle.name, targetPath).catch(() => void 0);
+            }
+            if (previous?.harnessBundle?.presetRoot && !previous.installedPath.startsWith(".offload/")) {
+              await this.addHarnessPresetRoot(manager, profile, targetPath, previous.harnessBundle.presetRoot, true).catch(() => void 0);
             }
           }
           throw error;
@@ -10640,19 +10706,33 @@ var require_packageInstaller = __commonJS({
         await this.assertHarnessBundleUnmodified(installed);
         const bundle = installed.harnessBundle;
         const manager = this.harnessProfileManager;
-        if (!installed.installedPath.startsWith(".offload/")) {
-          if (!manager)
-            throw new Error("This host cannot manage DeepSeek Harness profiles.");
-          await manager.remove(bundle.profile, bundle.name, installed.installedPath);
-        }
+        if (bundle.presetRoot && !manager)
+          throw new Error("This host cannot manage DeepSeek Harness agent presets.");
+        if (!manager && !installed.installedPath.startsWith(".offload/"))
+          throw new Error("This host cannot manage DeepSeek Harness profiles.");
+        let removed = false;
+        let rootRemoved = false;
         try {
+          if (!installed.installedPath.startsWith(".offload/")) {
+            await manager.remove(bundle.profile, bundle.name, installed.installedPath);
+            removed = true;
+          }
+          if (bundle.presetRoot && manager) {
+            await this.removeHarnessPresetRoot(manager, bundle.profile, installed.installedPath, bundle.presetRoot);
+            rootRemoved = true;
+          }
+          if (installed.type === "mcp")
+            await this.runMcpScript(installed.installedPath, mcpScripts_1.mcpUninstallScript, "uninstall", "deepseek-harness");
           await this.stateStore("global").remove(installed.id, installed.platform, installed.scope, installed.sourceId);
           await this.storage.remove("global", installed.installedPath);
         } catch (error) {
           await this.stateStore("global").upsert(installed).catch(() => void 0);
-          if (!installed.installedPath.startsWith(".offload/") && manager) {
+          if (removed && manager)
             await manager.add(bundle.profile, bundle.name, installed.installedPath).catch(() => void 0);
-          }
+          if (rootRemoved && bundle.presetRoot && manager)
+            await this.addHarnessPresetRoot(manager, bundle.profile, installed.installedPath, bundle.presetRoot, true).catch(() => void 0);
+          if (installed.type === "mcp")
+            await this.runMcpScript(installed.installedPath, mcpScripts_1.mcpInstallScript, "update", "deepseek-harness").catch(() => void 0);
           throw error;
         }
       }
@@ -10664,8 +10744,15 @@ var require_packageInstaller = __commonJS({
         const offloadPath = (0, pathPlanning_1.offloadRelativePath)("deepseek-harness", installed.type, installed.id);
         if (await this.storage.exists("global", offloadPath))
           throw new Error(`Offload path '${offloadPath}' already exists.`);
-        await this.harnessProfileManager.remove(bundle.profile, bundle.name, installed.installedPath);
+        let presetRootRemoved = false;
+        let bundleRemoved = false;
         try {
+          if (bundle.presetRoot) {
+            await this.removeHarnessPresetRoot(this.harnessProfileManager, bundle.profile, installed.installedPath, bundle.presetRoot);
+            presetRootRemoved = true;
+          }
+          await this.harnessProfileManager.remove(bundle.profile, bundle.name, installed.installedPath);
+          bundleRemoved = true;
           await this.moveDirectory("global", installed.installedPath, offloadPath);
           const moved = { ...installed, installedPath: offloadPath, hotloaded: false, offloadRequestedAt: (/* @__PURE__ */ new Date()).toISOString() };
           await this.stateStore("global").upsert(moved);
@@ -10674,7 +10761,10 @@ var require_packageInstaller = __commonJS({
           if (await this.storage.exists("global", offloadPath)) {
             await this.moveDirectory("global", offloadPath, installed.installedPath).catch(() => void 0);
           }
-          await this.harnessProfileManager.add(bundle.profile, bundle.name, installed.installedPath).catch(() => void 0);
+          if (bundleRemoved)
+            await this.harnessProfileManager.add(bundle.profile, bundle.name, installed.installedPath).catch(() => void 0);
+          if (presetRootRemoved && bundle.presetRoot)
+            await this.addHarnessPresetRoot(this.harnessProfileManager, bundle.profile, installed.installedPath, bundle.presetRoot, true).catch(() => void 0);
           throw error;
         }
       }
@@ -10688,21 +10778,38 @@ var require_packageInstaller = __commonJS({
           throw new Error(`Active path '${activePath}' already exists.`);
         await this.moveDirectory("global", installed.installedPath, activePath);
         let added = false;
+        let presetRootAdded = false;
         try {
           await this.harnessProfileManager.add(bundle.profile, bundle.name, activePath);
           added = true;
+          if (bundle.presetRoot) {
+            await this.addHarnessPresetRoot(this.harnessProfileManager, bundle.profile, activePath, bundle.presetRoot, true);
+            presetRootAdded = true;
+          }
           const moved = { ...installed, installedPath: activePath, hotloaded: true, hotloadRequestedAt: (/* @__PURE__ */ new Date()).toISOString() };
           await this.stateStore("global").upsert(moved);
           return moved;
         } catch (error) {
           if (added)
             await this.harnessProfileManager.remove(bundle.profile, bundle.name, activePath).catch(() => void 0);
+          if (presetRootAdded && bundle.presetRoot)
+            await this.removeHarnessPresetRoot(this.harnessProfileManager, bundle.profile, activePath, bundle.presetRoot).catch(() => void 0);
           await this.moveDirectory("global", activePath, installed.installedPath).catch(() => void 0);
           throw error;
         }
       }
       stateStore(scope) {
         return new installedState_1.InstalledStateStore(this.storage, scope);
+      }
+      async addHarnessPresetRoot(manager, profile, bundlePath, presetRoot, alreadyOwned) {
+        if (!manager.addPresetRoot)
+          throw new Error("This host cannot manage profile-scoped DeepSeek Harness agent presets.");
+        await manager.addPresetRoot(profile, bundlePath, presetRoot, alreadyOwned);
+      }
+      async removeHarnessPresetRoot(manager, profile, bundlePath, presetRoot) {
+        if (!manager.removePresetRoot)
+          throw new Error("This host cannot manage profile-scoped DeepSeek Harness agent presets.");
+        await manager.removePresetRoot(profile, bundlePath, presetRoot);
       }
       async installMcp(pkg, platform, action, installedAt = (/* @__PURE__ */ new Date()).toISOString(), previous, persistState = true, transform = (installed) => installed) {
         await this.assertNoMcpCollision(pkg, platform, previous);
@@ -11049,7 +11156,7 @@ var require_packageInstaller = __commonJS({
         await this.rollbackMigration(parsed);
       }
       validateMigrationJournal(value, scope) {
-        if (!isRecord7(value) || typeof value.operationId !== "string" || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(value.operationId) || !isRecord7(value.previous) || !isRecord7(value.next) || typeof value.targetPath !== "string") {
+        if (!isRecord9(value) || typeof value.operationId !== "string" || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(value.operationId) || !isRecord9(value.previous) || !isRecord9(value.next) || typeof value.targetPath !== "string") {
           throw new Error("Migration recovery journal is malformed.");
         }
         const previous = value.previous;
@@ -11170,7 +11277,7 @@ var require_packageInstaller = __commonJS({
     function isMigrationJournalNext2(value) {
       return typeof value.id === "string" && typeof value.platform === "string" && typeof value.scope === "string" && (value.sourceId === void 0 || typeof value.sourceId === "string");
     }
-    function isRecord7(value) {
+    function isRecord9(value) {
       return typeof value === "object" && value !== null && !Array.isArray(value);
     }
     function migrationJournalPath2() {
@@ -11388,8 +11495,8 @@ var require_marketplaceModel = __commonJS({
     function isInstalled2(installed, platform, scope) {
       return installed.some((item) => item.platform === platform && item.scope === scope);
     }
-    function orderPlatforms2(available, defaultPlatform) {
-      return [...available].sort((left, right) => {
+    function orderPlatforms2(available2, defaultPlatform) {
+      return [...available2].sort((left, right) => {
         if (left === defaultPlatform)
           return -1;
         if (right === defaultPlatform)
@@ -11871,9 +11978,9 @@ var require_dashboardModel = __commonJS({
         knownGroups: (0, groupInstall_1.collectPackageGroups)(catalog, installed),
         defaultPlatform: "codex"
       });
-      const available = serialized.packages.map((row) => ({ ...sanitizeAvailable(row), kind: "available" })).filter((row) => row.installOptions.length > 0);
+      const available2 = serialized.packages.map((row) => ({ ...sanitizeAvailable(row), kind: "available" })).filter((row) => row.installOptions.length > 0);
       const installedRows = serialized.installed.map((row) => ({ ...sanitizeInstalled(row), kind: "installed" })).sort((left, right) => Number(right.updateAvailable) - Number(left.updateAvailable) || left.name.localeCompare(right.name));
-      const allRows = query.tab === "available" ? available : query.tab === "updates" ? installedRows.filter((row) => row.updateAvailable) : installedRows;
+      const allRows = query.tab === "available" ? available2 : query.tab === "updates" ? installedRows.filter((row) => row.updateAvailable) : installedRows;
       const filtered = allRows.filter((row) => matchesQuery(row, query));
       const totalPages = Math.max(1, Math.ceil(filtered.length / query.pageSize));
       const page = Math.min(query.page, totalPages);
@@ -11888,7 +11995,7 @@ var require_dashboardModel = __commonJS({
         preferences: normalizePreferences(input.preferences),
         refresh: normalizeRefresh(input.refresh),
         counts: {
-          available: available.length,
+          available: available2.length,
           installed: installedRows.length,
           updates: installedRows.filter((row) => row.updateAvailable).length
         },
@@ -12063,6 +12170,127 @@ var require_githubUrl = __commonJS({
   }
 });
 
+// packages/marketplace-core/out/services/harnessPresetRoots.js
+var require_harnessPresetRoots = __commonJS({
+  "packages/marketplace-core/out/services/harnessPresetRoots.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.hasHarnessPresetPatchEntry = hasHarnessPresetPatchEntry2;
+    exports.addHarnessPresetRoot = addHarnessPresetRoot2;
+    exports.removeHarnessPresetRoot = removeHarnessPresetRoot2;
+    exports.resolveHarnessPresetConfig = resolveHarnessPresetConfig2;
+    var yaml_1 = require_dist();
+    var validation_1 = require_validation();
+    function hasHarnessPresetPatchEntry2(content) {
+      const { rows } = parsePatch2(content);
+      return findPresetRow2(rows) !== void 0;
+    }
+    function addHarnessPresetRoot2(content, path2, alreadyOwned = false, baseConfig) {
+      const { document, rows } = parsePatch2(content);
+      let row = findPresetRow2(rows);
+      if (!row) {
+        if (!baseConfig)
+          throw new validation_1.ValidationError("Unable to resolve the Harness profile's agent-presets defaults.");
+        row = { id: "agent-presets", config: baseConfig };
+        document.add(row);
+        rows.push(row);
+      }
+      const roots = rootsOf2(row);
+      const current = roots.find((root) => root.path === path2);
+      if (current) {
+        if (!alreadyOwned || !isOwnedRoot2(current, path2))
+          throw new validation_1.ValidationError("The Harness preset root already exists outside Marketplace ownership or was modified.");
+        return { content: document.toString(), roots };
+      }
+      const nextRoots = [...roots, { path: path2, trust: "system" }];
+      const index = rows.indexOf(row);
+      document.setIn([index, "config", "roots"], nextRoots);
+      return { content: document.toString(), roots: nextRoots };
+    }
+    function removeHarnessPresetRoot2(content, path2, removeGeneratedEntry = false, baseConfig) {
+      const { document, rows } = parsePatch2(content);
+      const row = findPresetRow2(rows);
+      if (!row)
+        return void 0;
+      const roots = rootsOf2(row);
+      const current = roots.find((root) => root.path === path2);
+      if (current && !isOwnedRoot2(current, path2))
+        throw new validation_1.ValidationError("The Marketplace-owned Harness preset root was modified and will not be removed.");
+      const nextRoots = roots.filter((root) => root.path !== path2);
+      if (nextRoots.length === roots.length)
+        return void 0;
+      const rowIndex = rows.indexOf(row);
+      const config = isRecord9(row.config) ? row.config : {};
+      const nextConfig = { ...config, roots: nextRoots };
+      const comparableConfig = nextRoots.length === 0 && !Array.isArray(baseConfig?.roots) ? Object.fromEntries(Object.entries(nextConfig).filter(([key]) => key !== "roots")) : nextConfig;
+      if (removeGeneratedEntry && baseConfig && sameValue2(comparableConfig, baseConfig)) {
+        document.deleteIn([rowIndex]);
+      } else if (nextRoots.length === 0) {
+        document.deleteIn([rowIndex, "config", "roots"]);
+      } else {
+        document.setIn([rowIndex, "config", "roots"], nextRoots);
+      }
+      return { content: document.toString(), roots: nextRoots };
+    }
+    function resolveHarnessPresetConfig2(layers) {
+      let result;
+      for (const layer of layers) {
+        const { rows } = parsePatch2(layer);
+        for (const operation of rows) {
+          const candidates = operation.id === "agent-presets" ? [operation] : Array.isArray(operation.insert) ? operation.insert.filter(isRecord9) : [];
+          for (const candidate of candidates) {
+            if (candidate.id === "agent-presets" && isRecord9(candidate.config))
+              result = candidate.config;
+          }
+        }
+      }
+      return result;
+    }
+    function parsePatch2(content) {
+      const document = (0, yaml_1.parseDocument)(content === void 0 || content.trim() === "" ? "[]\n" : content, { uniqueKeys: true });
+      const value = document.toJS();
+      if (document.errors.length || !Array.isArray(value) || value.some((row) => !isRecord9(row))) {
+        throw new validation_1.ValidationError("DeepSeek Harness profile cordis.patch.yml is invalid; preset configuration was not changed.");
+      }
+      return { document, rows: value };
+    }
+    function findPresetRow2(rows) {
+      const matches = rows.filter((row) => row.id === "agent-presets");
+      if (matches.length > 1)
+        throw new validation_1.ValidationError("Harness profile has multiple agent-presets patch entries.");
+      if (matches[0])
+        return matches[0];
+      return void 0;
+    }
+    function rootsOf2(row) {
+      const config = row.config === void 0 ? {} : row.config;
+      if (!isRecord9(config))
+        throw new validation_1.ValidationError("Harness agent-presets patch config is not an object.");
+      const roots = config.roots === void 0 ? [] : config.roots;
+      if (!Array.isArray(roots) || roots.some((root) => !isRecord9(root) || typeof root.path !== "string")) {
+        throw new validation_1.ValidationError("Harness agent-presets roots are invalid.");
+      }
+      return roots;
+    }
+    function isRecord9(value) {
+      return typeof value === "object" && value !== null && !Array.isArray(value);
+    }
+    function isOwnedRoot2(root, path2) {
+      return root.path === path2 && root.trust === "system" && Object.keys(root).length === 2;
+    }
+    function sameValue2(left, right) {
+      if (Array.isArray(left) && Array.isArray(right))
+        return left.length === right.length && left.every((item, index) => sameValue2(item, right[index]));
+      if (isRecord9(left) && isRecord9(right)) {
+        const leftKeys = Object.keys(left).sort();
+        const rightKeys = Object.keys(right).sort();
+        return leftKeys.length === rightKeys.length && leftKeys.every((key, index) => key === rightKeys[index] && sameValue2(left[key], right[key]));
+      }
+      return left === right;
+    }
+  }
+});
+
 // packages/marketplace-core/out/index.js
 var require_out = __commonJS({
   "packages/marketplace-core/out/index.js"(exports) {
@@ -12103,6 +12331,7 @@ var require_out = __commonJS({
     __exportStar(require_manifestDiagnostics(), exports);
     __exportStar(require_groupInstall(), exports);
     __exportStar(require_harnessBundle(), exports);
+    __exportStar(require_harnessPresetRoots(), exports);
     __exportStar(require_installedState(), exports);
     __exportStar(require_installPlanning(), exports);
     __exportStar(require_marketplaceModel(), exports);
@@ -12118,11 +12347,11 @@ var require_out = __commonJS({
 });
 
 // plugins/ai-marketplace-harness/src/index.ts
-import { spawn as spawn2 } from "node:child_process";
-import { lstat as lstat3, readdir, readFile as readFile2 } from "node:fs/promises";
+import { spawn as spawn3 } from "node:child_process";
+import { lstat as lstat4, readdir, readFile as readFile2, rename as rename2, unlink, writeFile as writeFile2 } from "node:fs/promises";
 import { lstatSync, readdirSync, readFileSync } from "node:fs";
-import { homedir as homedir2 } from "node:os";
-import { dirname as dirname2, join as join2, relative as relative2, resolve as resolve4 } from "node:path";
+import { homedir as homedir3 } from "node:os";
+import { dirname as dirname2, isAbsolute as isAbsolute4, join as join3, relative as relative3, resolve as resolve5 } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // packages/marketplace-core/src/types/packages.ts
@@ -12428,7 +12657,7 @@ function isPlatform(value) {
   return platforms.includes(value);
 }
 function validateMarketplaceManifest(value, source) {
-  if (!isRecord(value)) {
+  if (!isRecord2(value)) {
     throw new ValidationError(`AI Marketplace manifest at ${source} must be an object.`);
   }
   const schemaVersion = readPositiveInteger(value, "schema_version", source);
@@ -12543,7 +12772,7 @@ function optionalMigrations(record, source, destinationName) {
   if (value === void 0) return void 0;
   if (!Array.isArray(value) || value.length === 0) throw new ValidationError(`Manifest at ${source} has invalid 'migrations'. Expected a non-empty array.`);
   const migrations = value.map((item, index) => {
-    if (!isRecord(item) || !isRecord(item["from"])) {
+    if (!isRecord2(item) || !isRecord2(item["from"])) {
       throw new ValidationError(`Manifest at ${source} migration ${index + 1} must contain only a 'from' mapping.`);
     }
     const from = item["from"];
@@ -12701,29 +12930,29 @@ function visitKnownFields(root, value, parent, schemaVersion, source, diagnostic
     if (disposition === "reject-removed") throw new ValidationError(`Manifest at ${source} uses removed field '${path2}'.`);
     if (lifecycle.deprecatedIn !== null && schemaVersion >= lifecycle.deprecatedIn) diagnostics.push({ kind: "deprecated-field", field: path2, ...lifecycle.replacement ? { replacement: lifecycle.replacement } : {} });
     if (disposition === "prefer-replacement") continue;
-    if (isRecord(child)) visitKnownFields(root, child, path2, schemaVersion, source, diagnostics);
+    if (isRecord2(child)) visitKnownFields(root, child, path2, schemaVersion, source, diagnostics);
     else if (Array.isArray(child) && path2 === "history.migrations") {
-      for (const item of child) if (isRecord(item)) visitKnownFields(root, item, `${path2}[]`, schemaVersion, source, diagnostics);
+      for (const item of child) if (isRecord2(item)) visitKnownFields(root, item, `${path2}[]`, schemaVersion, source, diagnostics);
     }
   }
 }
 function hasManifestPath(root, path2) {
   let current = root;
   for (const segment of path2.replaceAll("[]", "").split(".")) {
-    if (!isRecord(current) || !(segment in current)) return false;
+    if (!isRecord2(current) || !(segment in current)) return false;
     current = current[segment];
   }
   return true;
 }
 function readRecord(record, key, source) {
   const value = record[key];
-  if (!isRecord(value)) throw new ValidationError(`Manifest at ${source} must include '${key}' as a mapping.`);
+  if (!isRecord2(value)) throw new ValidationError(`Manifest at ${source} must include '${key}' as a mapping.`);
   return value;
 }
 function optionalRecord(record, key, source) {
   const value = record[key];
   if (value === void 0) return void 0;
-  if (!isRecord(value)) throw new ValidationError(`Manifest at ${source} has invalid '${key}'. Expected a mapping.`);
+  if (!isRecord2(value)) throw new ValidationError(`Manifest at ${source} has invalid '${key}'. Expected a mapping.`);
   return value;
 }
 function readPositiveInteger(record, key, source) {
@@ -12748,7 +12977,7 @@ function assertUniqueStrings(values, path2, source) {
   const normalized = values.filter((value) => typeof value === "string").map((value) => value.trim());
   if (new Set(normalized).size !== normalized.length) throw new ValidationError(`Manifest at ${source} contains duplicate '${path2}' entries.`);
 }
-function isRecord(value) {
+function isRecord2(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
@@ -12765,10 +12994,10 @@ function parseMarketplaceYaml(text, source) {
   } catch (error) {
     throw new ValidationError(`AI Marketplace manifest at ${source} contains unsafe YAML aliases: ${error instanceof Error ? error.message : String(error)}`);
   }
-  if (!isRecord2(value)) throw new ValidationError(`AI Marketplace manifest at ${source} must contain a top-level mapping.`);
+  if (!isRecord3(value)) throw new ValidationError(`AI Marketplace manifest at ${source} must contain a top-level mapping.`);
   return value;
 }
-function isRecord2(value) {
+function isRecord3(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
@@ -12953,7 +13182,7 @@ function summarizeErrorBody(text) {
   return text.replace(/\s+/g, " ").trim().slice(0, 600);
 }
 async function delay(milliseconds) {
-  await new Promise((resolve5) => setTimeout(resolve5, milliseconds));
+  await new Promise((resolve6) => setTimeout(resolve6, milliseconds));
 }
 
 // packages/marketplace-core/src/services/azureDevOpsClient.ts
@@ -13804,7 +14033,7 @@ function isInstalledPackage(value) {
   return typeof record.id === "string" && typeof record.type === "string" && typeof record.platform === "string" && platforms.includes(record.platform) && typeof record.scope === "string" && typeof record.version === "string" && typeof record.sourceRepo === "string" && typeof record.sourceBranch === "string" && typeof record.sourcePath === "string" && typeof record.installedPath === "string" && typeof record.installedAt === "string" && (record.sourceId === void 0 || typeof record.sourceId === "string") && (record.qualifiedName === void 0 || typeof record.qualifiedName === "string") && (record.group === void 0 || typeof record.group === "string") && (record.managedConfig === void 0 || isManagedConfigContribution(record.managedConfig)) && (record.managedPayloadPath === void 0 || typeof record.managedPayloadPath === "string") && (record.harnessBundle === void 0 || isHarnessBundle(record.harnessBundle)) && (record.harnessProfile === void 0 || typeof record.harnessProfile === "string" && /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/.test(record.harnessProfile)) && (record.hotloaded === void 0 || typeof record.hotloaded === "boolean") && (record.hotloadRequestedAt === void 0 || typeof record.hotloadRequestedAt === "string") && (record.offloadRequestedAt === void 0 || typeof record.offloadRequestedAt === "string") && (record.autoUpdate === void 0 || typeof record.autoUpdate === "boolean") && (record.autoUpdateChangedAt === void 0 || typeof record.autoUpdateChangedAt === "string") && (record.sourceRevision === void 0 || typeof record.sourceRevision === "string") && (record.revertedAt === void 0 || typeof record.revertedAt === "string") && (record.revertedFromVersion === void 0 || typeof record.revertedFromVersion === "string") && (record.migrationHistory === void 0 || Array.isArray(record.migrationHistory) && record.migrationHistory.every(isMigrationHistoryEntry));
 }
 function isHarnessBundle(value) {
-  return isPlainRecord(value) && typeof value.profile === "string" && typeof value.name === "string" && typeof value.contentSha256 === "string" && /^[0-9a-f]{64}$/.test(value.contentSha256) && Array.isArray(value.files) && value.files.every((file) => isPlainRecord(file) && typeof file.path === "string" && typeof file.sha256 === "string" && /^[0-9a-f]{64}$/.test(file.sha256));
+  return isPlainRecord(value) && typeof value.profile === "string" && typeof value.name === "string" && typeof value.contentSha256 === "string" && /^[0-9a-f]{64}$/.test(value.contentSha256) && (value.presetRoot === void 0 || typeof value.presetRoot === "string" && value.presetRoot.length > 0) && Array.isArray(value.files) && value.files.every((file) => isPlainRecord(file) && typeof file.path === "string" && typeof file.sha256 === "string" && /^[0-9a-f]{64}$/.test(file.sha256));
 }
 function isMigrationHistoryEntry(value) {
   if (!isPlainRecord(value) || typeof value.migratedAt !== "string") return false;
@@ -13835,10 +14064,20 @@ function isPlainRecord(value) {
 
 // packages/marketplace-core/src/services/packageFiles.ts
 function filterPackageFilesForPlatform(files, platform) {
-  if (platform === "codex") {
-    return files;
+  const isHarnessBundle2 = files.some((file) => file.relativePath === "package.json" && declaresHarnessBundle(file.content));
+  return files.filter((file) => (platform === "codex" || !isOpenAIYaml(file.relativePath)) && !(platform !== "deepseek-harness" && isHarnessBundle2 && isHarnessOnlyFile(file.relativePath)));
+}
+function declaresHarnessBundle(content) {
+  try {
+    const value = JSON.parse(Buffer.from(content).toString("utf8"));
+    return typeof value === "object" && value !== null && "dsh" in value && typeof value.dsh === "object" && value.dsh !== null && "bundle" in value.dsh;
+  } catch {
+    return false;
   }
-  return files.filter((file) => !isOpenAIYaml(file.relativePath));
+}
+function isHarnessOnlyFile(relativePath) {
+  const path2 = relativePath.replaceAll("\\", "/");
+  return path2 === "package.json" || path2 === "cordis.patch.yml" || path2 === "index.js" || path2 === "agent.js" || path2 === "instructions.md" || path2.startsWith("presets/");
 }
 function isOpenAIYaml(relativePath) {
   const parts = relativePath.replaceAll("\\", "/").split("/");
@@ -13946,12 +14185,12 @@ function validateMcpEntrypoint(content, packageId, platform, source) {
   } catch {
     throw new ValidationError(`MCP entrypoint at ${source} must be valid JSON.`);
   }
-  if (!isRecord3(parsed)) {
+  if (!isRecord4(parsed)) {
     throw new ValidationError(`MCP entrypoint at ${source} must be a JSON object.`);
   }
-  const platformConfig = isRecord3(parsed[platform]) ? parsed[platform] : parsed;
+  const platformConfig = isRecord4(parsed[platform]) ? parsed[platform] : parsed;
   const servers = platform === "codex" ? platformConfig["mcp_servers"] ?? platformConfig["mcpServers"] : platformConfig["mcpServers"];
-  if (!isRecord3(servers)) {
+  if (!isRecord4(servers)) {
     if (looksLikeServerConfig(platformConfig)) {
       return { serverName: packageId, serverConfig: normalizeServerConfig(platform, platformConfig) };
     }
@@ -13962,14 +14201,14 @@ function validateMcpEntrypoint(content, packageId, platform, source) {
     throw new ValidationError(`MCP entrypoint at ${source} must define exactly one MCP server.`);
   }
   const serverConfig = servers[serverNames[0]];
-  if (!isRecord3(serverConfig)) {
+  if (!isRecord4(serverConfig)) {
     throw new ValidationError(`MCP entrypoint at ${source} must define its MCP server as a JSON object.`);
   }
   return { serverName: packageId, serverConfig: normalizeServerConfig(platform, serverConfig) };
 }
 function upsertJsonMcpServer(existingContent, serverName, serverConfig, expectedExisting) {
   const config = parseExistingJsonObject(existingContent, "MCP configuration");
-  const existingServers = isRecord3(config["mcpServers"]) ? config["mcpServers"] : {};
+  const existingServers = isRecord4(config["mcpServers"]) ? config["mcpServers"] : {};
   const existing = existingServers[serverName];
   if (existing !== void 0 && (!expectedExisting || !sameJsonValue(existing, expectedExisting))) {
     throw new ValidationError(`MCP server '${serverName}' already exists and is not managed by AI Marketplace.`);
@@ -13985,7 +14224,7 @@ function upsertJsonMcpServer(existingContent, serverName, serverConfig, expected
 }
 function removeJsonMcpServer(existingContent, serverName, expectedServerConfig) {
   const config = parseExistingJsonObject(existingContent, "MCP configuration");
-  if (!isRecord3(config["mcpServers"]) || !(serverName in config["mcpServers"])) {
+  if (!isRecord4(config["mcpServers"]) || !(serverName in config["mcpServers"])) {
     return existingContent;
   }
   if (expectedServerConfig && !sameJsonValue(config["mcpServers"][serverName], expectedServerConfig)) {
@@ -14003,7 +14242,7 @@ function readClaudeHookConfig(content, source) {
   } catch {
     throw new ValidationError(`Claude hook entrypoint at ${source} must be valid JSON.`);
   }
-  if (!isRecord3(parsed) || !isRecord3(parsed["hooks"])) {
+  if (!isRecord4(parsed) || !isRecord4(parsed["hooks"])) {
     throw new ValidationError(`Claude hook entrypoint at ${source} must contain a 'hooks' object.`);
   }
   const hooks = {};
@@ -14017,7 +14256,7 @@ function readClaudeHookConfig(content, source) {
 }
 function upsertClaudeHookConfig(existingContent, contribution) {
   const config = parseExistingJsonObject(existingContent, ".claude/settings.json");
-  const existingHooks = isRecord3(config["hooks"]) ? config["hooks"] : {};
+  const existingHooks = isRecord4(config["hooks"]) ? config["hooks"] : {};
   const hooks = { ...existingHooks };
   for (const [event, entries] of Object.entries(contribution)) {
     const existing = Array.isArray(hooks[event]) ? hooks[event] : [];
@@ -14028,7 +14267,7 @@ function upsertClaudeHookConfig(existingContent, contribution) {
 }
 function removeClaudeHookConfig(existingContent, contribution) {
   const config = parseExistingJsonObject(existingContent, ".claude/settings.json");
-  if (!isRecord3(config["hooks"])) {
+  if (!isRecord4(config["hooks"])) {
     return existingContent;
   }
   const hooks = { ...config["hooks"] };
@@ -14099,7 +14338,7 @@ function parseExistingJsonObject(content, source) {
   } catch {
     throw new ValidationError(`${source} must contain valid JSON.`);
   }
-  if (!isRecord3(parsed)) {
+  if (!isRecord4(parsed)) {
     throw new ValidationError(`${source} must contain a JSON object.`);
   }
   return parsed;
@@ -14114,7 +14353,7 @@ function appendTomlTable(lines, path2, record) {
   lines.push(`[${path2.map(quoteTomlKey).join(".")}]`);
   const nested = [];
   for (const [key, value] of Object.entries(record)) {
-    if (isRecord3(value)) {
+    if (isRecord4(value)) {
       nested.push([key, value]);
       continue;
     }
@@ -14203,7 +14442,7 @@ function normalizeServerConfig(platform, config) {
 function looksLikeServerConfig(value) {
   return typeof value["command"] === "string" || typeof value["url"] === "string";
 }
-function isRecord3(value) {
+function isRecord4(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function sameJsonValue(left, right) {
@@ -14213,7 +14452,7 @@ function canonicalize(value) {
   if (Array.isArray(value)) {
     return value.map(canonicalize);
   }
-  if (isRecord3(value)) {
+  if (isRecord4(value)) {
     return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonicalize(value[key])]));
   }
   return value;
@@ -14223,8 +14462,8 @@ function canonicalize(value) {
 var import_yaml2 = __toESM(require_dist());
 import { createHash } from "node:crypto";
 function validateHarnessBundle(pkg, files) {
-  if (pkg.manifest.entrypoint !== "package.json") {
-    throw new ValidationError(`DeepSeek Harness ${pkg.manifest.type} package '${pkg.manifest.id}' must use package.json as its entrypoint.`);
+  if (!files.some((file) => file.relativePath === pkg.manifest.entrypoint)) {
+    throw new ValidationError(`DeepSeek Harness package '${pkg.manifest.id}' is missing its catalog entrypoint '${pkg.manifest.entrypoint}'.`);
   }
   const entrypoint = files.find((file) => file.relativePath === "package.json");
   if (!entrypoint) throw new ValidationError(`DeepSeek Harness package '${pkg.manifest.id}' is missing package.json.`);
@@ -14234,9 +14473,10 @@ function validateHarnessBundle(pkg, files) {
   } catch {
     throw new ValidationError(`DeepSeek Harness package '${pkg.manifest.id}' has invalid package.json.`);
   }
-  if (!isRecord4(parsed) || typeof parsed.name !== "string" || !/^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+$/.test(parsed.name) || parsed.version !== pkg.manifest.version || !isRecord4(parsed.dsh) || !isRecord4(parsed.dsh.bundle)) {
+  if (!isRecord5(parsed) || typeof parsed.name !== "string" || !/^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+$/.test(parsed.name) || parsed.version !== pkg.manifest.version || !isRecord5(parsed.dsh) || !isRecord5(parsed.dsh.bundle)) {
     throw new ValidationError(`DeepSeek Harness package '${pkg.manifest.id}' requires a matching npm name, version, and dsh.bundle declaration.`);
   }
+  if (pkg.manifest.type === "mcp") assertMcpPackageScripts(pkg, files);
   const patch = parsed.dsh.bundle.patch;
   if (typeof patch !== "string") throw new ValidationError(`DeepSeek Harness package '${pkg.manifest.id}' requires dsh.bundle.patch.`);
   const patchPath = safeJoinRelative(patch.replace(/^\.\//, ""));
@@ -14250,14 +14490,14 @@ function validateHarnessBundle(pkg, files) {
   if (document.errors.length > 0 || !Array.isArray(patchValue) || patchValue.length === 0) {
     throw new ValidationError(`DeepSeek Harness package '${pkg.manifest.id}' has an invalid or empty Cordis patch.`);
   }
-  const rows = patchValue.flatMap((operation) => isRecord4(operation) && Array.isArray(operation.insert) ? operation.insert : []);
+  const rows = patchValue.flatMap((operation) => isRecord5(operation) && Array.isArray(operation.insert) ? operation.insert : []);
   const expectedName = parsed.name;
-  const hasContribution = rows.some((row) => isRecord4(row) && typeof row.id === "string" && row.id.length > 0 && typeof row.name === "string" && (row.name === expectedName || row.name.startsWith(`${expectedName}/`) || pkg.manifest.type === "mcp" && row.name === "@deepseek-ai/dsh-mcp-client"));
+  const hasContribution = rows.some((row) => isRecord5(row) && typeof row.id === "string" && row.id.length > 0 && typeof row.name === "string" && (row.name === expectedName || row.name.startsWith(`${expectedName}/`) || pkg.manifest.type === "mcp" && row.name === "@deepseek-ai/dsh-mcp-client"));
   if (!hasContribution) {
     throw new ValidationError(`DeepSeek Harness ${pkg.manifest.type} package '${pkg.manifest.id}' must insert a plugin contribution from its bundle.`);
   }
   const scripts = parsed.scripts;
-  if (isRecord4(scripts) && ["preinstall", "install", "postinstall", "prepare"].some((key) => key in scripts)) {
+  if (isRecord5(scripts) && ["preinstall", "install", "postinstall", "prepare"].some((key) => key in scripts)) {
     throw new ValidationError(`DeepSeek Harness package '${pkg.manifest.id}' must be prebuilt and contain no install lifecycle scripts.`);
   }
   const paths = /* @__PURE__ */ new Set();
@@ -14274,7 +14514,7 @@ function validateHarnessBundle(pkg, files) {
     throw new ValidationError(`DeepSeek Harness package '${pkg.manifest.id}' requires a prebuilt main module.`);
   }
   const exportsValue = parsed.exports;
-  if (exportsValue !== void 0 && !isRecord4(exportsValue) && typeof exportsValue !== "string") {
+  if (exportsValue !== void 0 && !isRecord5(exportsValue) && typeof exportsValue !== "string") {
     throw new ValidationError(`DeepSeek Harness package '${pkg.manifest.id}' has invalid exports.`);
   }
   const checkReference = (reference) => {
@@ -14282,22 +14522,22 @@ function validateHarnessBundle(pkg, files) {
       if (!reference.startsWith("./")) throw new ValidationError(`DeepSeek Harness package '${pkg.manifest.id}' has an external entrypoint reference.`);
       const target = safeJoinRelative(reference.slice(2));
       if (!paths.has(target)) throw new ValidationError(`DeepSeek Harness package '${pkg.manifest.id}' is missing referenced file '${target}'.`);
-    } else if (isRecord4(reference)) {
+    } else if (isRecord5(reference)) {
       for (const nested of Object.values(reference)) checkReference(nested);
     } else {
       throw new ValidationError(`DeepSeek Harness package '${pkg.manifest.id}' has invalid entrypoint exports.`);
     }
   };
   if (exportsValue !== void 0) checkReference(exportsValue);
-  if (isRecord4(parsed.dsh.client)) {
-    if (!isRecord4(exportsValue) || exportsValue["./client"] === void 0) {
+  if (isRecord5(parsed.dsh.client)) {
+    if (!isRecord5(exportsValue) || exportsValue["./client"] === void 0) {
       throw new ValidationError(`DeepSeek Harness package '${pkg.manifest.id}' declares dsh.client without a client export.`);
     }
   }
   for (const row of rows) {
-    if (!isRecord4(row) || typeof row.name !== "string" || !row.name.startsWith(`${expectedName}/`)) continue;
+    if (!isRecord5(row) || typeof row.name !== "string" || !row.name.startsWith(`${expectedName}/`)) continue;
     const subpath = `.${row.name.slice(expectedName.length)}`;
-    if (!isRecord4(exportsValue) || exportsValue[subpath] === void 0) {
+    if (!isRecord5(exportsValue) || exportsValue[subpath] === void 0) {
       throw new ValidationError(`DeepSeek Harness package '${pkg.manifest.id}' has no export for patch plugin '${row.name}'.`);
     }
   }
@@ -14305,9 +14545,18 @@ function validateHarnessBundle(pkg, files) {
   for (const file of [...files].sort((left, right) => left.relativePath.localeCompare(right.relativePath))) {
     digest.update(file.relativePath).update("\0").update(file.content).update("\0");
   }
-  return { name: parsed.name, patchPath, contentSha256: digest.digest("hex") };
+  const presetRootValue = parsed.dsh.bundle.presetRoot;
+  let presetRoot;
+  if (pkg.manifest.type === "agent") {
+    if (typeof presetRootValue !== "string") throw new ValidationError(`DeepSeek Harness agent '${pkg.manifest.id}' must declare dsh.bundle.presetRoot.`);
+    presetRoot = safeJoinRelative(presetRootValue.replace(/^\.\//, ""));
+    if (![...paths].some((path2) => path2.startsWith(`${presetRoot}/`) && path2.endsWith("/agent.cordis.yml"))) {
+      throw new ValidationError(`DeepSeek Harness agent '${pkg.manifest.id}' is missing a preset composition under '${presetRoot}'.`);
+    }
+  }
+  return { name: parsed.name, patchPath, contentSha256: digest.digest("hex"), ...presetRoot ? { presetRoot } : {} };
 }
-function isRecord4(value) {
+function isRecord5(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
@@ -14660,18 +14909,28 @@ var PackageInstaller = class {
     await this.assertMigrationDestinationAvailable(pkg, predecessor, targetPath);
     const profile = predecessor.harnessBundle.profile;
     const backupPath = `${predecessor.installedPath}.backup-${randomUUID()}`;
+    if (predecessor.type === "mcp") await this.runMcpScript(predecessor.installedPath, mcpUninstallScript, "migrate", "deepseek-harness");
     await this.storage.move("global", predecessor.installedPath, backupPath);
     let removed = false;
     let added = false;
+    let destinationPresetRootAdded = false;
     try {
       if (!offloaded) {
         await this.harnessProfileManager.remove(profile, predecessor.harnessBundle.name, predecessor.installedPath);
         removed = true;
+        if (predecessor.harnessBundle.presetRoot) {
+          await this.removeHarnessPresetRoot(this.harnessProfileManager, profile, predecessor.installedPath, predecessor.harnessBundle.presetRoot);
+        }
       }
       await this.replaceDirectory("global", targetPath, files);
+      if (pkg.manifest.type === "mcp") await this.runMcpScript(targetPath, mcpInstallScript, "migrate", "deepseek-harness");
       if (!offloaded) {
         await this.harnessProfileManager.add(profile, bundle.name, targetPath);
         added = true;
+        if (bundle.presetRoot) {
+          await this.addHarnessPresetRoot(this.harnessProfileManager, profile, targetPath, bundle.presetRoot, false);
+          destinationPresetRootAdded = true;
+        }
       }
       const migrated = {
         ...predecessor,
@@ -14687,6 +14946,7 @@ var PackageInstaller = class {
           profile,
           name: bundle.name,
           contentSha256: bundle.contentSha256,
+          ...bundle.presetRoot ? { presetRoot: bundle.presetRoot } : {},
           files: files.map((file) => ({ path: file.relativePath, sha256: sha256(file.content) }))
         },
         migrationHistory: [...predecessor.migrationHistory ?? [], {
@@ -14700,9 +14960,14 @@ var PackageInstaller = class {
       return migrated;
     } catch (error) {
       if (added) await this.harnessProfileManager.remove(profile, bundle.name, targetPath).catch(() => void 0);
+      if (destinationPresetRootAdded && bundle.presetRoot) await this.removeHarnessPresetRoot(this.harnessProfileManager, profile, targetPath, bundle.presetRoot).catch(() => void 0);
       await this.storage.remove("global", targetPath).catch(() => void 0);
       await this.storage.move("global", backupPath, predecessor.installedPath).catch(() => void 0);
-      if (removed) await this.harnessProfileManager.add(profile, predecessor.harnessBundle.name, predecessor.installedPath).catch(() => void 0);
+      if (predecessor.type === "mcp") await this.runMcpScript(predecessor.installedPath, mcpInstallScript, "update", "deepseek-harness").catch(() => void 0);
+      if (removed) {
+        await this.harnessProfileManager.add(profile, predecessor.harnessBundle.name, predecessor.installedPath).catch(() => void 0);
+        if (predecessor.harnessBundle.presetRoot) await this.addHarnessPresetRoot(this.harnessProfileManager, profile, predecessor.installedPath, predecessor.harnessBundle.presetRoot, true).catch(() => void 0);
+      }
       throw error;
     }
   }
@@ -14729,14 +14994,33 @@ var PackageInstaller = class {
     const hadPrevious = previous !== void 0 && await this.storage.exists("global", targetPath);
     if (hadPrevious) await this.storage.move("global", targetPath, backupPath);
     let added = false;
+    let lifecycleInstalled = false;
+    let presetRootAdded = false;
     try {
       await this.replaceDirectory("global", targetPath, files);
+      if (pkg.manifest.type === "mcp") {
+        await this.runMcpScript(targetPath, mcpInstallScript, previous ? revert ? "revert" : "update" : "install", "deepseek-harness");
+        lifecycleInstalled = true;
+      }
       if (!targetPath.startsWith(".offload/")) {
+        if (previous?.harnessBundle?.presetRoot && previous.harnessBundle.presetRoot !== bundle.presetRoot) {
+          await this.removeHarnessPresetRoot(manager, profile, targetPath, previous.harnessBundle.presetRoot);
+        }
         if (previous?.harnessBundle && previous.harnessBundle.name !== bundle.name) {
           await manager.remove(profile, previous.harnessBundle.name, targetPath);
         }
         await manager.add(profile, bundle.name, targetPath);
         added = true;
+        if (bundle.presetRoot) {
+          await this.addHarnessPresetRoot(
+            manager,
+            profile,
+            targetPath,
+            bundle.presetRoot,
+            previous?.harnessBundle?.presetRoot === bundle.presetRoot
+          );
+          presetRootAdded = true;
+        }
       }
       const installed = {
         id: pkg.manifest.id,
@@ -14754,6 +15038,7 @@ var PackageInstaller = class {
           profile,
           name: bundle.name,
           contentSha256: bundle.contentSha256,
+          ...bundle.presetRoot ? { presetRoot: bundle.presetRoot } : {},
           files: files.map((file) => ({ path: file.relativePath, sha256: sha256(file.content) }))
         },
         ...previous?.hotloaded === void 0 ? {} : { hotloaded: previous.hotloaded },
@@ -14764,11 +15049,17 @@ var PackageInstaller = class {
       return installed;
     } catch (error) {
       if (added) await manager.remove(profile, bundle.name, targetPath).catch(() => void 0);
+      if (presetRootAdded && bundle.presetRoot) await this.removeHarnessPresetRoot(manager, profile, targetPath, bundle.presetRoot).catch(() => void 0);
+      if (lifecycleInstalled && !hadPrevious) await this.runMcpScript(targetPath, mcpUninstallScript, "uninstall", "deepseek-harness").catch(() => void 0);
       await this.storage.remove("global", targetPath).catch(() => void 0);
       if (hadPrevious) {
         await this.storage.move("global", backupPath, targetPath).catch(() => void 0);
+        if (previous?.type === "mcp") await this.runMcpScript(targetPath, mcpInstallScript, "update", "deepseek-harness").catch(() => void 0);
         if (previous?.harnessBundle && !previous.installedPath.startsWith(".offload/")) {
           await manager.add(profile, previous.harnessBundle.name, targetPath).catch(() => void 0);
+        }
+        if (previous?.harnessBundle?.presetRoot && !previous.installedPath.startsWith(".offload/")) {
+          await this.addHarnessPresetRoot(manager, profile, targetPath, previous.harnessBundle.presetRoot, true).catch(() => void 0);
         }
       }
       throw error;
@@ -14797,18 +15088,27 @@ var PackageInstaller = class {
     await this.assertHarnessBundleUnmodified(installed);
     const bundle = installed.harnessBundle;
     const manager = this.harnessProfileManager;
-    if (!installed.installedPath.startsWith(".offload/")) {
-      if (!manager) throw new Error("This host cannot manage DeepSeek Harness profiles.");
-      await manager.remove(bundle.profile, bundle.name, installed.installedPath);
-    }
+    if (bundle.presetRoot && !manager) throw new Error("This host cannot manage DeepSeek Harness agent presets.");
+    if (!manager && !installed.installedPath.startsWith(".offload/")) throw new Error("This host cannot manage DeepSeek Harness profiles.");
+    let removed = false;
+    let rootRemoved = false;
     try {
+      if (!installed.installedPath.startsWith(".offload/")) {
+        await manager.remove(bundle.profile, bundle.name, installed.installedPath);
+        removed = true;
+      }
+      if (bundle.presetRoot && manager) {
+        await this.removeHarnessPresetRoot(manager, bundle.profile, installed.installedPath, bundle.presetRoot);
+        rootRemoved = true;
+      }
+      if (installed.type === "mcp") await this.runMcpScript(installed.installedPath, mcpUninstallScript, "uninstall", "deepseek-harness");
       await this.stateStore("global").remove(installed.id, installed.platform, installed.scope, installed.sourceId);
       await this.storage.remove("global", installed.installedPath);
     } catch (error) {
       await this.stateStore("global").upsert(installed).catch(() => void 0);
-      if (!installed.installedPath.startsWith(".offload/") && manager) {
-        await manager.add(bundle.profile, bundle.name, installed.installedPath).catch(() => void 0);
-      }
+      if (removed && manager) await manager.add(bundle.profile, bundle.name, installed.installedPath).catch(() => void 0);
+      if (rootRemoved && bundle.presetRoot && manager) await this.addHarnessPresetRoot(manager, bundle.profile, installed.installedPath, bundle.presetRoot, true).catch(() => void 0);
+      if (installed.type === "mcp") await this.runMcpScript(installed.installedPath, mcpInstallScript, "update", "deepseek-harness").catch(() => void 0);
       throw error;
     }
   }
@@ -14818,8 +15118,15 @@ var PackageInstaller = class {
     const bundle = installed.harnessBundle;
     const offloadPath = offloadRelativePath("deepseek-harness", installed.type, installed.id);
     if (await this.storage.exists("global", offloadPath)) throw new Error(`Offload path '${offloadPath}' already exists.`);
-    await this.harnessProfileManager.remove(bundle.profile, bundle.name, installed.installedPath);
+    let presetRootRemoved = false;
+    let bundleRemoved = false;
     try {
+      if (bundle.presetRoot) {
+        await this.removeHarnessPresetRoot(this.harnessProfileManager, bundle.profile, installed.installedPath, bundle.presetRoot);
+        presetRootRemoved = true;
+      }
+      await this.harnessProfileManager.remove(bundle.profile, bundle.name, installed.installedPath);
+      bundleRemoved = true;
       await this.moveDirectory("global", installed.installedPath, offloadPath);
       const moved = { ...installed, installedPath: offloadPath, hotloaded: false, offloadRequestedAt: (/* @__PURE__ */ new Date()).toISOString() };
       await this.stateStore("global").upsert(moved);
@@ -14828,7 +15135,8 @@ var PackageInstaller = class {
       if (await this.storage.exists("global", offloadPath)) {
         await this.moveDirectory("global", offloadPath, installed.installedPath).catch(() => void 0);
       }
-      await this.harnessProfileManager.add(bundle.profile, bundle.name, installed.installedPath).catch(() => void 0);
+      if (bundleRemoved) await this.harnessProfileManager.add(bundle.profile, bundle.name, installed.installedPath).catch(() => void 0);
+      if (presetRootRemoved && bundle.presetRoot) await this.addHarnessPresetRoot(this.harnessProfileManager, bundle.profile, installed.installedPath, bundle.presetRoot, true).catch(() => void 0);
       throw error;
     }
   }
@@ -14840,20 +15148,34 @@ var PackageInstaller = class {
     if (await this.storage.exists("global", activePath)) throw new Error(`Active path '${activePath}' already exists.`);
     await this.moveDirectory("global", installed.installedPath, activePath);
     let added = false;
+    let presetRootAdded = false;
     try {
       await this.harnessProfileManager.add(bundle.profile, bundle.name, activePath);
       added = true;
+      if (bundle.presetRoot) {
+        await this.addHarnessPresetRoot(this.harnessProfileManager, bundle.profile, activePath, bundle.presetRoot, true);
+        presetRootAdded = true;
+      }
       const moved = { ...installed, installedPath: activePath, hotloaded: true, hotloadRequestedAt: (/* @__PURE__ */ new Date()).toISOString() };
       await this.stateStore("global").upsert(moved);
       return moved;
     } catch (error) {
       if (added) await this.harnessProfileManager.remove(bundle.profile, bundle.name, activePath).catch(() => void 0);
+      if (presetRootAdded && bundle.presetRoot) await this.removeHarnessPresetRoot(this.harnessProfileManager, bundle.profile, activePath, bundle.presetRoot).catch(() => void 0);
       await this.moveDirectory("global", activePath, installed.installedPath).catch(() => void 0);
       throw error;
     }
   }
   stateStore(scope) {
     return new InstalledStateStore(this.storage, scope);
+  }
+  async addHarnessPresetRoot(manager, profile, bundlePath, presetRoot, alreadyOwned) {
+    if (!manager.addPresetRoot) throw new Error("This host cannot manage profile-scoped DeepSeek Harness agent presets.");
+    await manager.addPresetRoot(profile, bundlePath, presetRoot, alreadyOwned);
+  }
+  async removeHarnessPresetRoot(manager, profile, bundlePath, presetRoot) {
+    if (!manager.removePresetRoot) throw new Error("This host cannot manage profile-scoped DeepSeek Harness agent presets.");
+    await manager.removePresetRoot(profile, bundlePath, presetRoot);
   }
   async installMcp(pkg, platform, action, installedAt = (/* @__PURE__ */ new Date()).toISOString(), previous, persistState = true, transform = (installed) => installed) {
     await this.assertNoMcpCollision(pkg, platform, previous);
@@ -15187,7 +15509,7 @@ var PackageInstaller = class {
     await this.rollbackMigration(parsed);
   }
   validateMigrationJournal(value, scope) {
-    if (!isRecord5(value) || typeof value.operationId !== "string" || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(value.operationId) || !isRecord5(value.previous) || !isRecord5(value.next) || typeof value.targetPath !== "string") {
+    if (!isRecord6(value) || typeof value.operationId !== "string" || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(value.operationId) || !isRecord6(value.previous) || !isRecord6(value.next) || typeof value.targetPath !== "string") {
       throw new Error("Migration recovery journal is malformed.");
     }
     const previous = value.previous;
@@ -15306,7 +15628,7 @@ function isMigrationJournalPrevious(value) {
 function isMigrationJournalNext(value) {
   return typeof value.id === "string" && typeof value.platform === "string" && typeof value.scope === "string" && (value.sourceId === void 0 || typeof value.sourceId === "string");
 }
-function isRecord5(value) {
+function isRecord6(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function migrationJournalPath() {
@@ -15495,8 +15817,8 @@ function mcpInstallPlatformCandidates(pkg, installed, defaultPlatform) {
 function isInstalled(installed, platform, scope) {
   return installed.some((item) => item.platform === platform && item.scope === scope);
 }
-function orderPlatforms(available, defaultPlatform) {
-  return [...available].sort((left, right) => {
+function orderPlatforms(available2, defaultPlatform) {
+  return [...available2].sort((left, right) => {
     if (left === defaultPlatform) return -1;
     if (right === defaultPlatform) return 1;
     return platforms.indexOf(left) - platforms.indexOf(right);
@@ -15866,6 +16188,106 @@ function deduplicateSyncActions(actions) {
   });
 }
 
+// packages/marketplace-core/src/services/harnessPresetRoots.ts
+var import_yaml3 = __toESM(require_dist());
+function hasHarnessPresetPatchEntry(content) {
+  const { rows } = parsePatch(content);
+  return findPresetRow(rows) !== void 0;
+}
+function addHarnessPresetRoot(content, path2, alreadyOwned = false, baseConfig) {
+  const { document, rows } = parsePatch(content);
+  let row = findPresetRow(rows);
+  if (!row) {
+    if (!baseConfig) throw new ValidationError("Unable to resolve the Harness profile's agent-presets defaults.");
+    row = { id: "agent-presets", config: baseConfig };
+    document.add(row);
+    rows.push(row);
+  }
+  const roots = rootsOf(row);
+  const current = roots.find((root) => root.path === path2);
+  if (current) {
+    if (!alreadyOwned || !isOwnedRoot(current, path2)) throw new ValidationError("The Harness preset root already exists outside Marketplace ownership or was modified.");
+    return { content: document.toString(), roots };
+  }
+  const nextRoots = [...roots, { path: path2, trust: "system" }];
+  const index = rows.indexOf(row);
+  document.setIn([index, "config", "roots"], nextRoots);
+  return { content: document.toString(), roots: nextRoots };
+}
+function removeHarnessPresetRoot(content, path2, removeGeneratedEntry = false, baseConfig) {
+  const { document, rows } = parsePatch(content);
+  const row = findPresetRow(rows);
+  if (!row) return void 0;
+  const roots = rootsOf(row);
+  const current = roots.find((root) => root.path === path2);
+  if (current && !isOwnedRoot(current, path2)) throw new ValidationError("The Marketplace-owned Harness preset root was modified and will not be removed.");
+  const nextRoots = roots.filter((root) => root.path !== path2);
+  if (nextRoots.length === roots.length) return void 0;
+  const rowIndex = rows.indexOf(row);
+  const config = isRecord7(row.config) ? row.config : {};
+  const nextConfig = { ...config, roots: nextRoots };
+  const comparableConfig = nextRoots.length === 0 && !Array.isArray(baseConfig?.roots) ? Object.fromEntries(Object.entries(nextConfig).filter(([key]) => key !== "roots")) : nextConfig;
+  if (removeGeneratedEntry && baseConfig && sameValue(comparableConfig, baseConfig)) {
+    document.deleteIn([rowIndex]);
+  } else if (nextRoots.length === 0) {
+    document.deleteIn([rowIndex, "config", "roots"]);
+  } else {
+    document.setIn([rowIndex, "config", "roots"], nextRoots);
+  }
+  return { content: document.toString(), roots: nextRoots };
+}
+function resolveHarnessPresetConfig(layers) {
+  let result;
+  for (const layer of layers) {
+    const { rows } = parsePatch(layer);
+    for (const operation of rows) {
+      const candidates = operation.id === "agent-presets" ? [operation] : Array.isArray(operation.insert) ? operation.insert.filter(isRecord7) : [];
+      for (const candidate of candidates) {
+        if (candidate.id === "agent-presets" && isRecord7(candidate.config)) result = candidate.config;
+      }
+    }
+  }
+  return result;
+}
+function parsePatch(content) {
+  const document = (0, import_yaml3.parseDocument)(content === void 0 || content.trim() === "" ? "[]\n" : content, { uniqueKeys: true });
+  const value = document.toJS();
+  if (document.errors.length || !Array.isArray(value) || value.some((row) => !isRecord7(row))) {
+    throw new ValidationError("DeepSeek Harness profile cordis.patch.yml is invalid; preset configuration was not changed.");
+  }
+  return { document, rows: value };
+}
+function findPresetRow(rows) {
+  const matches = rows.filter((row) => row.id === "agent-presets");
+  if (matches.length > 1) throw new ValidationError("Harness profile has multiple agent-presets patch entries.");
+  if (matches[0]) return matches[0];
+  return void 0;
+}
+function rootsOf(row) {
+  const config = row.config === void 0 ? {} : row.config;
+  if (!isRecord7(config)) throw new ValidationError("Harness agent-presets patch config is not an object.");
+  const roots = config.roots === void 0 ? [] : config.roots;
+  if (!Array.isArray(roots) || roots.some((root) => !isRecord7(root) || typeof root.path !== "string")) {
+    throw new ValidationError("Harness agent-presets roots are invalid.");
+  }
+  return roots;
+}
+function isRecord7(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function isOwnedRoot(root, path2) {
+  return root.path === path2 && root.trust === "system" && Object.keys(root).length === 2;
+}
+function sameValue(left, right) {
+  if (Array.isArray(left) && Array.isArray(right)) return left.length === right.length && left.every((item, index) => sameValue(item, right[index]));
+  if (isRecord7(left) && isRecord7(right)) {
+    const leftKeys = Object.keys(left).sort();
+    const rightKeys = Object.keys(right).sort();
+    return leftKeys.length === rightKeys.length && leftKeys.every((key, index) => key === rightKeys[index] && sameValue(left[key], right[key]));
+  }
+  return left === right;
+}
+
 // packages/marketplace-node-cli/src/cli.ts
 var import_core3 = __toESM(require_out(), 1);
 import { homedir } from "node:os";
@@ -15941,7 +16363,7 @@ function normalizedOverrides(raw) {
   return Object.fromEntries(Object.entries(raw).filter(([key, value]) => import_core.packageTypes.includes(key) && typeof value === "string"));
 }
 function normalizeFile(value, policy2) {
-  if (!isRecord6(value) || value.schemaVersion !== 1) throw new Error(`${policy2.displayName} marketplace configuration must use schemaVersion 1.`);
+  if (!isRecord8(value) || value.schemaVersion !== 1) throw new Error(`${policy2.displayName} marketplace configuration must use schemaVersion 1.`);
   assertAllowedKeys(value, ["schemaVersion", "repositories", "packageFolders", "platformPathOverrides", "autoInstallGroups", "autoUpdate"], "config");
   const repositories = value.repositories === void 0 ? void 0 : normalizeRepositories(value.repositories);
   const packageFolders = value.packageFolders === void 0 ? void 0 : normalizeStringMap(value.packageFolders, "packageFolders");
@@ -15960,7 +16382,7 @@ function normalizeFile(value, policy2) {
 function normalizeRepositories(value) {
   if (!Array.isArray(value)) throw new Error("repositories must be an array.");
   return value.map((item) => {
-    if (!isRecord6(item)) throw new Error("Each repository must be an object.");
+    if (!isRecord8(item)) throw new Error("Each repository must be an object.");
     assertAllowedKeys(item, ["id", "url", "provider", "label", "branch", "enabled", "allowDefaultPackages", "packageFolders"], "repository");
     if (typeof item.id !== "string" || typeof item.url !== "string") throw new Error("Each repository requires string id and url fields.");
     if (item.provider !== void 0 && (typeof item.provider !== "string" || !import_core.repositoryProviders.includes(item.provider))) throw new Error("Repository provider is unsupported.");
@@ -15982,7 +16404,7 @@ function assertCredentialIdCollisions(sources) {
   }
 }
 function normalizeStringMap(value, label) {
-  if (!isRecord6(value)) throw new Error(`${label} must be an object.`);
+  if (!isRecord8(value)) throw new Error(`${label} must be an object.`);
   assertAllowedKeys(value, [...import_core.packageTypes], label);
   const output = {};
   for (const type of import_core.packageTypes) {
@@ -16003,13 +16425,13 @@ function rejectCredentialFields(value, policy2, path2 = "config") {
     value.forEach((item, index) => rejectCredentialFields(item, policy2, `${path2}[${index}]`));
     return;
   }
-  if (!isRecord6(value)) return;
+  if (!isRecord8(value)) return;
   for (const [key, nested] of Object.entries(value)) {
     if (/(?:token|secret|password|credential|authorization|api[-_]?key)/i.test(key)) throw new Error(`${policy2.displayName} marketplace configuration must not contain credential field '${path2}.${key}'.`);
     rejectCredentialFields(nested, policy2, `${path2}.${key}`);
   }
 }
-function isRecord6(value) {
+function isRecord8(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function message3(error) {
@@ -16230,6 +16652,109 @@ function compact(values) {
 // packages/marketplace-node-cli/src/mcpScriptRunner.ts
 var maximumOutputLength = 64 * 1024;
 
+// plugins/ai-marketplace-harness/src/mcpScriptRunner.ts
+import { spawn as spawn2 } from "node:child_process";
+import { lstat as lstat3 } from "node:fs/promises";
+import { homedir as homedir2 } from "node:os";
+import { isAbsolute as isAbsolute3, join as join2, relative as relative2, resolve as resolve4, sep as sep2 } from "node:path";
+var outputLimit = 64 * 1024;
+var HarnessMcpScriptRunner = class {
+  async run(request) {
+    const root = resolve4(homedir2());
+    const packagePath = await safePath(root, request.packagePath, "directory");
+    const scriptPath = await safePath(root, `${request.packagePath}/${request.script}`, "file");
+    const candidates = process.platform === "win32" ? [{ command: "py", prefix: ["-3"] }, { command: "python3", prefix: [] }, { command: "python", prefix: [] }] : [{ command: "python3", prefix: [] }, { command: "python", prefix: [] }];
+    for (const candidate of candidates) {
+      if (!await available(candidate.command, candidate.prefix)) continue;
+      const output = await execute(candidate.command, [
+        ...candidate.prefix,
+        scriptPath,
+        "--action",
+        request.action,
+        "--platform",
+        request.platform
+      ], packagePath, request.timeoutMs);
+      if (output) process.stderr.write(`${redact(output)}
+`);
+      return;
+    }
+    throw new Error("Python is required for MCP package lifecycle scripts, but no supported interpreter was found.");
+  }
+};
+async function safePath(root, relativePath, kind) {
+  if (!relativePath || isAbsolute3(relativePath) || relativePath.includes("\0")) throw new Error("Unsafe MCP lifecycle package path.");
+  const target = resolve4(root, relativePath);
+  const child = relative2(root, target);
+  if (!child || child === ".." || child.startsWith(`..${sep2}`) || isAbsolute3(child)) throw new Error("MCP lifecycle package path escapes the user directory.");
+  let current = root;
+  const segments = child.split(sep2);
+  for (const [index, segment] of segments.entries()) {
+    current = join2(current, segment);
+    const info = await lstat3(current);
+    if (info.isSymbolicLink()) throw new Error("MCP lifecycle package paths cannot contain symbolic links.");
+    if (index < segments.length - 1 && !info.isDirectory()) throw new Error("MCP lifecycle package path contains a non-directory component.");
+    if (index === segments.length - 1 && (kind === "file" ? !info.isFile() : !info.isDirectory())) {
+      throw new Error(kind === "file" ? "MCP lifecycle script is not a regular file." : "MCP package payload is not a directory.");
+    }
+  }
+  return target;
+}
+async function available(command, prefix) {
+  return new Promise((resolveAvailable) => {
+    const child = spawn2(command, [...prefix, "--version"], { env: sanitizedEnvironment(), shell: false, windowsHide: true, stdio: "ignore" });
+    const timeout = setTimeout(() => {
+      child.kill();
+      resolveAvailable(false);
+    }, 5e3);
+    child.once("error", () => {
+      clearTimeout(timeout);
+      resolveAvailable(false);
+    });
+    child.once("close", (code) => {
+      clearTimeout(timeout);
+      resolveAvailable(code === 0);
+    });
+  });
+}
+async function execute(command, args, cwd, timeoutMs) {
+  return new Promise((resolveRun, rejectRun) => {
+    const child = spawn2(command, args, { cwd, env: sanitizedEnvironment(), shell: false, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
+    let output = "";
+    let timedOut = false;
+    child.stdout?.on("data", (chunk) => {
+      output = `${output}${chunk.toString("utf8")}`.slice(-outputLimit);
+    });
+    child.stderr?.on("data", (chunk) => {
+      output = `${output}${chunk.toString("utf8")}`.slice(-outputLimit);
+    });
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      child.kill();
+    }, timeoutMs);
+    child.once("error", (error) => {
+      clearTimeout(timeout);
+      rejectRun(error);
+    });
+    child.once("close", (code) => {
+      clearTimeout(timeout);
+      const safeOutput = redact(output.trim());
+      if (timedOut) rejectRun(new Error(`MCP lifecycle script timed out after ${Math.round(timeoutMs / 6e4)} minutes.${safeOutput ? `
+${safeOutput}` : ""}`));
+      else if (code === 0) resolveRun(safeOutput);
+      else rejectRun(new Error(`MCP lifecycle script failed with exit code ${code ?? "unknown"}.${safeOutput ? `
+${safeOutput}` : ""}`));
+    });
+  });
+}
+function sanitizedEnvironment() {
+  const env = { ...process.env };
+  for (const key of Object.keys(env)) if (/^(?:GH_TOKEN|GITHUB_TOKEN|AZURE_DEVOPS_ACCESS_TOKEN|AZURE_DEVOPS_EXT_PAT|GITLAB_OAUTH_TOKEN|GITLAB_TOKEN|AI_MARKETPLACE_.*(?:TOKEN|PAT|SECRET|PASSWORD))$/i.test(key)) delete env[key];
+  return env;
+}
+function redact(value) {
+  return value.replace(/(?:ghp|github_pat|glpat|azdopat)_[A-Za-z0-9_-]+/gi, "[REDACTED]").replace(/(authorization:\s*(?:basic|bearer)\s+)[A-Za-z0-9._~+/=-]+/ig, "$1[REDACTED]");
+}
+
 // plugins/ai-marketplace-harness/src/index.ts
 var name = "ai-marketplace-harness";
 var inject = [];
@@ -16242,9 +16767,9 @@ var policy = {
   mcpConfigRelativePath: "",
   supportedScopes: ["workspace", "global"]
 };
-var userHome = homedir2();
-var dshHome = process.env.DSH_HOME || join2(userHome, ".dsh");
-var pluginRoot = resolve4(dirname2(fileURLToPath(import.meta.url)), "..");
+var userHome = homedir3();
+var dshHome = process.env.DSH_HOME || join3(userHome, ".dsh");
+var pluginRoot = resolve5(dirname2(fileURLToPath(import.meta.url)), "..");
 var testedHarnessVersion = "0.1.5-rc.3";
 function apply(ctx) {
   ctx.inject(["systemPrompt"], (ready) => ready.effect(() => ready.systemPrompt.section({
@@ -16284,7 +16809,8 @@ async function handleRequest(ctx, req, res) {
       configuration: { read: () => config },
       credentials: createEnvironmentCredentialProvider(process.env),
       logger: { log: () => void 0 },
-      harnessProfileManager: new ProfileManager()
+      harnessProfileManager: new ProfileManager(),
+      mcpScriptRunner: new HarnessMcpScriptRunner()
     });
     const action = body.action;
     if (action === "model" || action === "refresh") {
@@ -16369,7 +16895,7 @@ function respond(res, status, value) {
 }
 async function profiles() {
   try {
-    return (await readdir(join2(dshHome, "profiles"), { withFileTypes: true })).filter((item) => item.isDirectory() && profileName.test(item.name)).map((item) => item.name).sort();
+    return (await readdir(join3(dshHome, "profiles"), { withFileTypes: true })).filter((item) => item.isDirectory() && profileName.test(item.name)).map((item) => item.name).sort();
   } catch {
     return ["web"];
   }
@@ -16418,11 +16944,11 @@ var HarnessStorage = class {
       const files = [];
       const walk = async (directory) => {
         for (const entry of await readdir(directory, { withFileTypes: true })) {
-          const path2 = join2(directory, entry.name);
-          const stat2 = await lstat3(path2);
+          const path2 = join3(directory, entry.name);
+          const stat2 = await lstat4(path2);
           if (stat2.isSymbolicLink()) throw new Error("Harness payload contains a symlink.");
           if (stat2.isDirectory()) await walk(path2);
-          else if (stat2.isFile()) files.push({ relativePath: relative2(sourcePath, path2).replaceAll("\\", "/"), content: await readFile2(path2) });
+          else if (stat2.isFile()) files.push({ relativePath: relative3(sourcePath, path2).replaceAll("\\", "/"), content: await readFile2(path2) });
           else throw new Error("Harness payload contains an unsupported filesystem entry.");
         }
       };
@@ -16444,11 +16970,11 @@ var HarnessStorage = class {
     const files = [];
     const walk = async (directory) => {
       for (const entry of await readdir(directory, { withFileTypes: true })) {
-        const child = join2(directory, entry.name);
-        const stat2 = await lstat3(child);
+        const child = join3(directory, entry.name);
+        const stat2 = await lstat4(child);
         if (stat2.isSymbolicLink()) throw new Error("Harness payload contains a symlink.");
         if (stat2.isDirectory()) await walk(child);
-        else if (stat2.isFile()) files.push(relative2(root, child).replaceAll("\\", "/"));
+        else if (stat2.isFile()) files.push(relative3(root, child).replaceAll("\\", "/"));
         else throw new Error("Harness payload contains an unsupported filesystem entry.");
       }
     };
@@ -16462,18 +16988,113 @@ var ProfileManager = class {
     if (dependency === void 0) await this.add(profile, name, "");
   }
   async add(profile, bundle, payload) {
-    const path2 = payload ? resolve4(userHome, payload) : pluginRoot;
+    const path2 = payload ? resolve5(userHome, payload) : pluginRoot;
     await this.assertDependency(profile, bundle, path2, true);
     await this.run(["plugin", "--profile", profile, "add", `file:${path2.replaceAll("\\", "/")}`]);
   }
   async remove(profile, bundle, payload) {
-    await this.assertDependency(profile, bundle, resolve4(userHome, payload), false);
+    await this.assertDependency(profile, bundle, resolve5(userHome, payload), false);
     await this.run(["plugin", "--profile", profile, "remove", bundle]);
+  }
+  async addPresetRoot(profile, bundlePath, presetRoot, alreadyOwned) {
+    const bundle = this.bundlePath(bundlePath);
+    const root = this.presetPath(bundle, presetRoot);
+    const patch = await this.readProfilePatch(profile);
+    const previous = await this.readPresetOwnership(profile);
+    if (previous?.roots.includes(root) && !alreadyOwned) throw new Error("This Harness preset root is already owned by another Marketplace installation.");
+    const createdPatchEntry = previous?.createdPatchEntry ?? !hasHarnessPresetPatchEntry(patch);
+    const baseConfig = previous?.baseConfig ?? (createdPatchEntry ? await this.resolveBasePresetConfig(profile) : void 0);
+    const nextPatch = addHarnessPresetRoot(patch, root, alreadyOwned || previous?.roots.includes(root) === true, baseConfig);
+    const ownership = {
+      createdPatchEntry,
+      ...baseConfig ? { baseConfig } : {},
+      roots: previous?.roots.includes(root) ? previous.roots : [...previous?.roots ?? [], root]
+    };
+    await this.writeProfilePatch(profile, nextPatch.content);
+    await this.writePresetOwnership(profile, ownership);
+  }
+  async removePresetRoot(profile, bundlePath, presetRoot) {
+    const bundle = this.bundlePath(bundlePath);
+    const root = this.presetPath(bundle, presetRoot);
+    const ownership = await this.readPresetOwnership(profile);
+    if (ownership && !ownership.roots.includes(root)) return;
+    const remaining = ownership?.roots.filter((item) => item !== root) ?? [];
+    const next = removeHarnessPresetRoot(
+      await this.readProfilePatch(profile),
+      root,
+      ownership?.createdPatchEntry === true && remaining.length === 0,
+      ownership?.baseConfig
+    );
+    if (next) await this.writeProfilePatch(profile, next.content);
+    if (ownership && remaining.length === 0) await this.removePresetOwnership(profile);
+    else if (ownership) await this.writePresetOwnership(profile, { ...ownership, roots: remaining });
+  }
+  bundlePath(relativePath) {
+    if (!relativePath || relativePath.split(/[\\/]/).some((segment) => segment === ".." || segment === ".")) throw new Error("Unsafe DeepSeek Harness bundle path.");
+    const path2 = resolve5(userHome, relativePath);
+    const within = relative3(resolve5(userHome, ".ai_marketplace"), path2);
+    if (!within || within.startsWith("..") || within.startsWith("../") || isAbsolute4(within)) throw new Error("Preset root bundle is outside Marketplace ownership.");
+    return path2;
+  }
+  presetPath(bundle, relativePath) {
+    if (!relativePath || relativePath.split(/[\\/]/).some((segment) => segment === ".." || segment === ".")) throw new Error("Unsafe Harness preset root path.");
+    const path2 = resolve5(bundle, relativePath);
+    const within = relative3(bundle, path2);
+    if (!within || within.startsWith("..") || isAbsolute4(within)) throw new Error("Harness preset root escapes its installed bundle.");
+    return path2.replaceAll("\\", "/");
+  }
+  async readProfilePatch(profile) {
+    if (!profileName.test(profile)) throw new Error("Invalid Harness profile name.");
+    try {
+      return await readFile2(join3(dshHome, "profiles", profile, "cordis.patch.yml"), "utf8");
+    } catch (error) {
+      if (error.code === "ENOENT") return void 0;
+      throw error;
+    }
+  }
+  async writeProfilePatch(profile, content) {
+    const path2 = join3(dshHome, "profiles", profile, "cordis.patch.yml");
+    const temporary = `${path2}.ai-marketplace-${Date.now()}.tmp`;
+    await writeFile2(temporary, content, { encoding: "utf8", flag: "wx" });
+    try {
+      await rename2(temporary, path2);
+    } finally {
+      await unlink(temporary).catch(() => void 0);
+    }
+  }
+  presetOwnershipPath(profile) {
+    return join3(dshHome, "profiles", profile, ".ai-marketplace-agent-presets.json");
+  }
+  async readPresetOwnership(profile) {
+    try {
+      const value = JSON.parse(await readFile2(this.presetOwnershipPath(profile), "utf8"));
+      if (!isRecord(value) || value.version !== 1 || typeof value.createdPatchEntry !== "boolean" || !Array.isArray(value.roots) || value.roots.some((item) => typeof item !== "string")) {
+        throw new Error("Marketplace agent-preset ownership state is invalid.");
+      }
+      return { createdPatchEntry: value.createdPatchEntry, ...isRecord(value.baseConfig) ? { baseConfig: value.baseConfig } : {}, roots: value.roots };
+    } catch (error) {
+      if (error.code === "ENOENT") return void 0;
+      throw error;
+    }
+  }
+  async writePresetOwnership(profile, state) {
+    const path2 = this.presetOwnershipPath(profile);
+    const temporary = `${path2}.ai-marketplace-${Date.now()}.tmp`;
+    await writeFile2(temporary, `${JSON.stringify({ version: 1, ...state }, null, 2)}
+`, { encoding: "utf8", flag: "wx" });
+    try {
+      await rename2(temporary, path2);
+    } finally {
+      await unlink(temporary).catch(() => void 0);
+    }
+  }
+  async removePresetOwnership(profile) {
+    await unlink(this.presetOwnershipPath(profile)).catch(() => void 0);
   }
   async dependency(profile, bundle) {
     if (!profileName.test(profile) || !bundleName.test(bundle)) throw new Error("Invalid Harness profile or bundle name.");
     try {
-      const value = JSON.parse(await readFile2(join2(dshHome, "profiles", profile, "package.json"), "utf8"));
+      const value = JSON.parse(await readFile2(join3(dshHome, "profiles", profile, "package.json"), "utf8"));
       if (!value || typeof value !== "object") return void 0;
       const deps = value.dependencies;
       return deps && typeof deps === "object" ? deps[bundle] : void 0;
@@ -16482,10 +17103,31 @@ var ProfileManager = class {
       throw error;
     }
   }
+  async resolveBasePresetConfig(profile) {
+    const path2 = join3(dshHome, "profiles", profile, "package.json");
+    let manifest;
+    try {
+      manifest = JSON.parse(await readFile2(path2, "utf8"));
+    } catch (error) {
+      if (error.code === "ENOENT") return void 0;
+      throw error;
+    }
+    if (!isRecord(manifest) || !isRecord(manifest.dsh) || !isRecord(manifest.dsh.profile) || !Array.isArray(manifest.dsh.profile.bundles)) return void 0;
+    const layers = [];
+    for (const bundle of manifest.dsh.profile.bundles) {
+      if (typeof bundle !== "string" || !bundleName.test(bundle)) continue;
+      try {
+        layers.push(await readFile2(join3(dshHome, "profiles", profile, "node_modules", ...bundle.split("/"), "cordis.patch.yml"), "utf8"));
+      } catch (error) {
+        if (error.code !== "ENOENT") throw error;
+      }
+    }
+    return resolveHarnessPresetConfig(layers);
+  }
   async assertDependency(profile, bundle, path2, allowMissing) {
     const dependency = await this.dependency(profile, bundle);
     if (dependency === void 0 && allowMissing) return;
-    if (typeof dependency !== "string" || !/^(?:file|link):/.test(dependency) || resolve4(dshHome, "profiles", profile, dependency.slice(dependency.indexOf(":") + 1)) !== path2) {
+    if (typeof dependency !== "string" || !/^(?:file|link):/.test(dependency) || resolve5(dshHome, "profiles", profile, dependency.slice(dependency.indexOf(":") + 1)) !== path2) {
       throw new Error(`Harness bundle '${bundle}' has another owner in profile '${profile}'.`);
     }
   }
@@ -16499,7 +17141,7 @@ var ProfileManager = class {
     return new Promise((resolveRun, rejectRun) => {
       const windows = process.platform === "win32";
       const script = "$dshArgs = @(ConvertFrom-Json $env:AI_MARKETPLACE_DSH_ARGUMENTS); & dsh @dshArgs; exit $LASTEXITCODE";
-      const child = spawn2(cliScript ? process.execPath : windows ? "powershell.exe" : "dsh", cliScript ? [cliScript, ...args] : windows ? ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")] : args, { windowsHide: true, stdio: ["ignore", "pipe", "ignore"], env: windows && !cliScript ? { ...process.env, AI_MARKETPLACE_DSH_ARGUMENTS: JSON.stringify(args) } : process.env });
+      const child = spawn3(cliScript ? process.execPath : windows ? "powershell.exe" : "dsh", cliScript ? [cliScript, ...args] : windows ? ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")] : args, { windowsHide: true, stdio: ["ignore", "pipe", "ignore"], env: windows && !cliScript ? { ...process.env, AI_MARKETPLACE_DSH_ARGUMENTS: JSON.stringify(args) } : process.env });
       let output = "";
       child.stdout.on("data", (chunk) => {
         output = `${output}${chunk.toString("utf8")}`.slice(-1024);
@@ -16512,8 +17154,8 @@ var ProfileManager = class {
 function collectRules(cwd) {
   const profileIndex = process.argv.indexOf("--profile");
   const profile = profileIndex >= 0 && profileName.test(process.argv[profileIndex + 1] ?? "") ? process.argv[profileIndex + 1] : "web";
-  const roots = [{ path: join2(dshHome, "rules"), scope: "global", state: join2(userHome, ".ai_marketplace", "installed.json") }];
-  if (cwd) roots.push({ path: join2(resolve4(cwd), ".dsh", "rules"), scope: "workspace", state: join2(resolve4(cwd), ".ai_marketplace", "installed.json") });
+  const roots = [{ path: join3(dshHome, "rules"), scope: "global", state: join3(userHome, ".ai_marketplace", "installed.json") }];
+  if (cwd) roots.push({ path: join3(resolve5(cwd), ".dsh", "rules"), scope: "workspace", state: join3(resolve5(cwd), ".ai_marketplace", "installed.json") });
   const sections = [];
   for (const root of roots) {
     if (!isDirectory(root.path)) continue;
@@ -16521,7 +17163,7 @@ function collectRules(cwd) {
     for (const id of readdirSync(root.path).sort()) {
       if (!profileName.test(id)) continue;
       if (!managed.has(id)) continue;
-      const path2 = join2(root.path, id, "RULE.md");
+      const path2 = join3(root.path, id, "RULE.md");
       if (!isFile2(path2)) continue;
       sections.push(`## ${id}
 ${readFileSync(path2, "utf8")}`);

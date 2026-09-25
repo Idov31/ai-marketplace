@@ -3,17 +3,19 @@ import { parseDocument } from "yaml";
 import type { MarketplacePackage, PackageFile } from "../types/packages";
 import { safeJoinRelative } from "./pathPlanning";
 import { ValidationError } from "./validation";
+import { assertMcpPackageScripts } from "./mcpScripts";
 
 export interface HarnessBundle {
   readonly name: string;
   readonly patchPath: string;
   readonly contentSha256: string;
+  readonly presetRoot?: string;
 }
 
 /** A Harness bundle is a prebuilt npm package with a Cordis patch layer. */
 export function validateHarnessBundle(pkg: MarketplacePackage, files: readonly PackageFile[]): HarnessBundle {
-  if (pkg.manifest.entrypoint !== "package.json") {
-    throw new ValidationError(`DeepSeek Harness ${pkg.manifest.type} package '${pkg.manifest.id}' must use package.json as its entrypoint.`);
+  if (!files.some((file) => file.relativePath === pkg.manifest.entrypoint)) {
+    throw new ValidationError(`DeepSeek Harness package '${pkg.manifest.id}' is missing its catalog entrypoint '${pkg.manifest.entrypoint}'.`);
   }
   const entrypoint = files.find((file) => file.relativePath === "package.json");
   if (!entrypoint) throw new ValidationError(`DeepSeek Harness package '${pkg.manifest.id}' is missing package.json.`);
@@ -24,6 +26,7 @@ export function validateHarnessBundle(pkg: MarketplacePackage, files: readonly P
     || parsed.version !== pkg.manifest.version || !isRecord(parsed.dsh) || !isRecord(parsed.dsh.bundle)) {
     throw new ValidationError(`DeepSeek Harness package '${pkg.manifest.id}' requires a matching npm name, version, and dsh.bundle declaration.`);
   }
+  if (pkg.manifest.type === "mcp") assertMcpPackageScripts(pkg, files);
   const patch = parsed.dsh.bundle.patch;
   if (typeof patch !== "string") throw new ValidationError(`DeepSeek Harness package '${pkg.manifest.id}' requires dsh.bundle.patch.`);
   const patchPath = safeJoinRelative(patch.replace(/^\.\//, ""));
@@ -94,7 +97,16 @@ export function validateHarnessBundle(pkg: MarketplacePackage, files: readonly P
   for (const file of [...files].sort((left, right) => left.relativePath.localeCompare(right.relativePath))) {
     digest.update(file.relativePath).update("\0").update(file.content).update("\0");
   }
-  return { name: parsed.name, patchPath, contentSha256: digest.digest("hex") };
+  const presetRootValue = parsed.dsh.bundle.presetRoot;
+  let presetRoot: string | undefined;
+  if (pkg.manifest.type === "agent") {
+    if (typeof presetRootValue !== "string") throw new ValidationError(`DeepSeek Harness agent '${pkg.manifest.id}' must declare dsh.bundle.presetRoot.`);
+    presetRoot = safeJoinRelative(presetRootValue.replace(/^\.\//, ""));
+    if (![...paths].some((path) => path.startsWith(`${presetRoot}/`) && path.endsWith("/agent.cordis.yml"))) {
+      throw new ValidationError(`DeepSeek Harness agent '${pkg.manifest.id}' is missing a preset composition under '${presetRoot}'.`);
+    }
+  }
+  return { name: parsed.name, patchPath, contentSha256: digest.digest("hex"), ...(presetRoot ? { presetRoot } : {}) };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

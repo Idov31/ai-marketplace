@@ -146,6 +146,7 @@ export interface InstalledPackage {
     readonly profile: string;
     readonly name: string;
     readonly contentSha256: string;
+    readonly presetRoot?: string;
     readonly files: readonly { readonly path: string; readonly sha256: string }[];
   };
   /** Profile whose rule adapter loads this Harness instruction package. */
