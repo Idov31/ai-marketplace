@@ -223,7 +223,7 @@
     "@vscode/test-cli": "^0.0.15",
     "@vscode/vsce": "^4.0.0",
     "esbuild": "^0.28.1",
-    "eslint": "^10.10.0",
+    "eslint": "^10.11.0",
     "typescript": "^6.0.3",
     "yaml": "^2.9.1"
   },
