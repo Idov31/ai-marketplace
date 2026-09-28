@@ -33,7 +33,7 @@
     "@anthropic-ai/claude-code": "2.1.281",
     "@types/node": "^26.6.1",
     "@types/vscode": "1.138.0",
-    "@typescript-eslint/eslint-plugin": "^8.70.0",
+    "@typescript-eslint/eslint-plugin": "^8.70.1",
     "@typescript-eslint/parser": "^8.70.1",
     "@vscode/test-cli": "^0.0.15",
     "@vscode/vsce": "^4.0.0",
