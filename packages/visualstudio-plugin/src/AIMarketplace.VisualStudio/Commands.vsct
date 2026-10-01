@@ -8,7 +8,7 @@
       <Button guid="guidMarketplaceCommandSet" id="OpenCommand" priority="0x0100" type="Button"><Parent guid="guidMarketplaceCommandSet" id="MarketplaceGroup" /><Strings><ButtonText>Open AI Marketplace</ButtonText></Strings></Button>
       <Button guid="guidMarketplaceCommandSet" id="RefreshCommand" priority="0x0110" type="Button"><Parent guid="guidMarketplaceCommandSet" id="MarketplaceGroup" /><Strings><ButtonText>Refresh AI Marketplace</ButtonText></Strings></Button>
       <Button guid="guidMarketplaceCommandSet" id="DiagnoseCommand" priority="0x0120" type="Button"><Parent guid="guidMarketplaceCommandSet" id="MarketplaceGroup" /><Strings><ButtonText>Diagnose AI Marketplace</ButtonText></Strings></Button>
-      <Button guid="guidMarketplaceCommandSet" id="CredentialsCommand" priority="0x0130" type="Button"><Parent guid="guidMarketplaceCommandSet" id="MarketplaceGroup" /><Strings><ButtonText>Save Repository Credential...</ButtonText></Strings></Button>
+      <Button guid="guidMarketplaceCommandSet" id="CredentialsCommand" priority="0x0130" type="Button"><Parent guid="guidMarketplaceCommandSet" id="MarketplaceGroup" /><Strings><ButtonText>Set Repository Credential...</ButtonText></Strings></Button>
       <Button guid="guidMarketplaceCommandSet" id="OptionsCommand" priority="0x0140" type="Button"><Parent guid="guidMarketplaceCommandSet" id="MarketplaceGroup" /><Strings><ButtonText>AI Marketplace Settings...</ButtonText></Strings></Button>
     </Buttons>
   </Commands>

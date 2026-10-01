@@ -13,7 +13,7 @@ using Task = System.Threading.Tasks.Task;
 
 namespace AIMarketplace.VisualStudio;
 
-[PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true)]
+[PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true, RegisterUsing = RegistrationMethod.CodeBase)]
 [InstalledProductRegistration("AI Marketplace", "Browse and manage AI Marketplace packages", "1.1.0")]
 [ProvideMenuResource("Menus.ctmenu", 1)]
 [ProvideToolWindow(typeof(MarketplaceToolWindow))]
@@ -41,7 +41,7 @@ public sealed class MarketplacePackage : AsyncPackage
             commands.AddCommand(new MenuCommand(ShowToolWindowCommand, new CommandID(CommandSet, 0x0100)));
             commands.AddCommand(new MenuCommand(RefreshCommand, new CommandID(CommandSet, 0x0101)));
             commands.AddCommand(new MenuCommand(DiagnoseCommand, new CommandID(CommandSet, 0x0102)));
-            commands.AddCommand(new MenuCommand((_, _) => SaveCredential(), new CommandID(CommandSet, 0x0103)));
+            commands.AddCommand(new MenuCommand((_, _) => ManageCredentials(), new CommandID(CommandSet, 0x0103)));
             commands.AddCommand(new MenuCommand((_, _) => ShowOptionPage(typeof(MarketplaceOptions)), new CommandID(CommandSet, 0x0104)));
         }
         await ShowChangelogOnceAsync(options);
@@ -80,15 +80,27 @@ public sealed class MarketplacePackage : AsyncPackage
         output?.Activate();
     }
 
-    private void SaveCredential()
+    internal bool ManageCredentials()
     {
         ThreadHelper.ThrowIfNotOnUIThread();
-        var dialog = new CredentialDialog { Owner = Application.Current?.MainWindow };
-        if (dialog.ShowDialog() == true)
+        CredentialDialog? dialog = null;
+        try
         {
-            new CredentialBroker().Save(dialog.Provider, dialog.SourceId, dialog.Kind, dialog.Token);
-            VsShellUtilities.ShowMessageBox(this, "Credential saved in Windows Credential Manager.", "AI Marketplace", OLEMSGICON.OLEMSGICON_INFO, OLEMSGBUTTON.OLEMSGBUTTON_OK, OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
+            dialog = new CredentialDialog(((MarketplaceOptions)GetDialogPage(typeof(MarketplaceOptions))).GetConfiguration()) { Owner = Application.Current?.MainWindow };
+            if (dialog.ShowDialog() != true) return false;
+            var broker = new CredentialBroker();
+            SidecarSupervisor.ValidateCredentialRequest(((MarketplaceOptions)GetDialogPage(typeof(MarketplaceOptions))).GetConfiguration(), dialog.Provider, dialog.SourceId);
+            if (dialog.RemoveRequested) broker.Delete(dialog.Provider, dialog.SourceId);
+            else broker.Save(dialog.Provider, dialog.SourceId, dialog.Kind, dialog.Token);
+            VsShellUtilities.ShowMessageBox(this, dialog.RemoveRequested ? "Saved credential removed." : "Credential saved in Windows Credential Manager.", "AI Marketplace", OLEMSGICON.OLEMSGICON_INFO, OLEMSGBUTTON.OLEMSGBUTTON_OK, OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
+            return true;
         }
+        catch (Exception)
+        {
+            VsShellUtilities.ShowMessageBox(this, "Unable to change the credential. Check repository configuration and Windows Credential Manager access.", "AI Marketplace", OLEMSGICON.OLEMSGICON_CRITICAL, OLEMSGBUTTON.OLEMSGBUTTON_OK, OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
+            return false;
+        }
+        finally { dialog?.ClearToken(); }
     }
 
     internal void OpenExternal(Uri target)

@@ -35,7 +35,11 @@ internal sealed class CredentialBroker
     {
         ValidateId(provider, nameof(provider));
         if (sourceId is not null) ValidateId(sourceId, nameof(sourceId));
-        CredDelete(Target(provider, sourceId), CredentialType.Generic, 0);
+        if (!CredDelete(Target(provider, sourceId), CredentialType.Generic, 0))
+        {
+            var error = Marshal.GetLastWin32Error();
+            if (error != 1168) throw new Win32Exception(error);
+        }
     }
 
     private static string Target(string provider, string? sourceId) => Prefix + provider + "/" + (sourceId ?? "shared");

@@ -175,6 +175,18 @@ test("loopback server enforces one-time bootstrap, cookie, Host, Origin, CSRF, C
   assert.equal(crossOrigin.status, 403);
   const valid = await fetch(`${server.origin}/api/plans`, { method: "POST", headers: { Cookie: cookie, Origin: server.origin, "X-CSRF-Token": csrfToken, "Content-Type": "application/json" }, body: JSON.stringify({ action: "sync" }) });
   assert.equal(valid.status, 200);
+  const planHeaders = { Cookie: cookie, Origin: server.origin, "X-CSRF-Token": csrfToken, "Content-Type": "application/json" };
+  for (const provider of ["github", "azure-devops", "gitlab"]) {
+    const source = { id: "team", url: "https://example.invalid/team/packages", provider };
+    const response = await fetch(`${server.origin}/api/plans`, { method: "POST", headers: planHeaders, body: JSON.stringify({ action: "source-add", source }) });
+    assert.equal(response.status, 200);
+    assert.deepEqual((await response.json()).request.source, source);
+  }
+  for (const provider of ["unknown", 123, { token: "not-a-provider" }]) {
+    const response = await fetch(`${server.origin}/api/plans`, { method: "POST", headers: planHeaders, body: JSON.stringify({ action: "source-add", source: { id: "team", url: "https://example.invalid/team/packages", provider } }) });
+    assert.equal(response.status, 400);
+    assert.match((await response.json()).error.message, /provider is unsupported/);
+  }
   const heartbeat = await fetch(`${server.origin}/api/heartbeat`, { method: "POST", headers: { Cookie: cookie, Origin: server.origin, "X-CSRF-Token": csrfToken, "Content-Type": "application/json" }, body: "{}" });
   assert.deepEqual(await heartbeat.json(), { ok: true, idleTimeoutMs: 1800000 });
   const apply = await fetch(`${server.origin}/api/plans/plan/apply`, { method: "POST", headers: { Cookie: cookie, Origin: server.origin, "X-CSRF-Token": csrfToken, "Content-Type": "application/json" }, body: "{}" });

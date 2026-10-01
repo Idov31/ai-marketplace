@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("AIMarketplace.VisualStudio")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.1.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.1.0+f6244e64245bcfed0ee84d8401f1c22ef397a7d3")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.1.0+0360714cd7058631ecb67bf807d456d5a40c9159")]
 [assembly: System.Reflection.AssemblyProductAttribute("AIMarketplace.VisualStudio")]
 [assembly: System.Reflection.AssemblyTitleAttribute("AIMarketplace.VisualStudio")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.1.0.0")]

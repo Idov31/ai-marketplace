@@ -16,7 +16,8 @@ internal sealed class RuntimeManifest
         "Sidecar/ai-marketplace.cjs",
         "Dashboard/index.html",
         "Dashboard/app.js",
-        "Dashboard/styles.css"
+        "Dashboard/styles.css",
+        "Assets/ai-marketplace.png"
     };
     private readonly string root;
     private readonly IReadOnlyDictionary<string, string> hashes;

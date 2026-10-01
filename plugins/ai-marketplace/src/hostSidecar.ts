@@ -24,11 +24,26 @@ import {
   configurationSummary,
   dashboardAssetLoader,
   isCodexConfigFile,
+  isDashboardRefreshWarning,
   mutateDashboardConfig
 } from "./dashboardCli.js";
 import { NodeMcpScriptRunner } from "./mcpScriptRunner.js";
 
 const runtimeVersion = "1.1.0";
+
+export function createHostCatalogLogger(
+  diagnostic: (line: string) => void,
+  warnings: string[],
+  redact: (line: string) => string
+): { log(line: string): void } {
+  return {
+    log: (line) => {
+      const safeLine = redact(line);
+      diagnostic(safeLine);
+      if (isDashboardRefreshWarning(safeLine)) warnings.push(safeLine);
+    }
+  };
+}
 
 interface RuntimeState {
   readonly initialized: HostInitializeRequest;
@@ -106,7 +121,7 @@ async function initializeRuntime(
     storage,
     configuration: { read: () => toMarketplaceConfig(raw, policy) },
     credentials: createHostCredentialProvider(connection, redactor),
-    logger: { log: (line) => warnings.push(redactor.redact(line)) },
+    logger: createHostCatalogLogger(diagnostic, warnings, (line) => redactor.redact(line)),
     mcpScriptRunner: new NodeMcpScriptRunner(storage)
   });
   const configuration: DashboardConfigurationAdapter = {
@@ -140,7 +155,9 @@ async function initializeRuntime(
     },
     withOperationLock: (roots, action) => withOperationLock(storage, roots, action),
     diagnose: async () => ({
-      ...(await service.diagnose()),
+      ...(raw.repositories?.some((source) => source.enabled !== false)
+        ? await service.diagnose()
+        : { connected: false, packageCount: 0, configurationRequired: true, message: "No repository configured. Open Auto Updates > Marketplace sources to add a repository URL and branch." }),
       host: initialized.host,
       hostVersion: initialized.hostVersion,
       runtimeVersion,
@@ -175,6 +192,8 @@ function hostPolicy(platform: Platform): MarketplaceCliHostPolicy {
   return {
     platform,
     displayName: "Visual Studio",
+    useDefaultRepository: false,
+    allowDefaultPackages: false,
     configFileName: "visualstudio.json",
     mcpConfigRelativePath: mcpConfigPath(platform),
     supportedScopes: ["workspace", "global"]

@@ -41,6 +41,8 @@ export interface MarketplaceCliRepository {
 }
 
 export interface MarketplaceCliHostPolicy {
+  readonly useDefaultRepository?: boolean;
+  readonly allowDefaultPackages?: boolean;
   readonly platform: Platform;
   readonly displayName: string;
   readonly configFileName: string;
@@ -71,14 +73,14 @@ export async function writeHostConfig(storage: MarketplaceStorage, policy: Marke
 
 export function toMarketplaceConfig(raw: MarketplaceCliConfigFile, policy: MarketplaceCliHostPolicy): MarketplaceConfig {
   const packageFolders = normalizedFolders(raw.packageFolders);
-  const sources = raw.repositories?.map((source) => normalizeSource(source, packageFolders));
+  const sources = raw.repositories?.map((source) => normalizeSource(policy.allowDefaultPackages === false ? { ...source, allowDefaultPackages: false } : source, packageFolders));
   assertCredentialIdCollisions(sources ?? []);
   const legacy = parseGitHubRepo(defaultGitHubRepositoryUrl)!;
   return {
-    repository: legacy.fullName,
+    repository: policy.useDefaultRepository === false ? "" : legacy.fullName,
     branch: "main",
     packageFolders,
-    ...(sources && sources.length > 0 ? { repositories: sources } : {}),
+    ...(policy.useDefaultRepository === false ? { repositories: sources ?? [] } : sources && sources.length > 0 ? { repositories: sources } : {}),
     platformPathOverrides: { [policy.platform]: normalizedOverrides(raw.platformPathOverrides) },
     defaultPlatform: policy.platform,
     autoUpdateEnabled: raw.autoUpdate === true,

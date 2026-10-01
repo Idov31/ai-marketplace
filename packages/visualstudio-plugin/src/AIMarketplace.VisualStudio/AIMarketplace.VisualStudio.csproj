@@ -11,9 +11,11 @@
     <TargetVsixContainerName>AIMarketplace.VisualStudio.vsix</TargetVsixContainerName>
     <RootNamespace>AIMarketplace.VisualStudio</RootNamespace>
     <GeneratePkgDefFile>true</GeneratePkgDefFile>
+    <RegisterWithCodebase>true</RegisterWithCodebase>
     <IncludeAssemblyInVSIXContainer>true</IncludeAssemblyInVSIXContainer>
     <IncludeDebugSymbolsInVSIXContainer>false</IncludeDebugSymbolsInVSIXContainer>
     <CopyBuildOutputToOutputDirectory>true</CopyBuildOutputToOutputDirectory>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <CreateVsixContainer>true</CreateVsixContainer>
     <DeployExtension>false</DeployExtension>
     <StartAction>Program</StartAction>
@@ -31,7 +33,7 @@
     <PackageReference Include="Microsoft.VisualStudio.SDK" Version="17.14.40265" ExcludeAssets="runtime" />
     <PackageReference Include="Microsoft.VSSDK.BuildTools" Version="17.14.2142" PrivateAssets="all" GeneratePathProperty="true" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4191.47" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" ForceIncludeInVSIX="true" />
   </ItemGroup>
   <ItemGroup>
     <VSCTCompile Include="Commands.vsct">
@@ -41,9 +43,7 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <IncludeInVSIX>true</IncludeInVSIX>
     </Content>
-    <Content Include="..\..\..\..\plugins\ai-marketplace\assets\ai-marketplace.png">
-      <Link>Assets\ai-marketplace.png</Link>
-      <TargetPath>Assets\ai-marketplace.png</TargetPath>
+    <Content Include="Assets\ai-marketplace.png" Condition="Exists('Assets\ai-marketplace.png')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <IncludeInVSIX>true</IncludeInVSIX>
     </Content>

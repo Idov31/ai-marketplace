@@ -35,7 +35,11 @@ internal sealed class SidecarSupervisor : IDisposable
         await lifecycle.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (process is { HasExited: false } && origin is not null) return origin;
+            if (process is { HasExited: false } && origin is not null && protocol is not null)
+            {
+                var launch = await protocol.RequestAsync("launch", new JObject(), cancellationToken).ConfigureAwait(false);
+                return ValidateLaunchUrl(launch.Value<string>("launchUrl"), origin);
+            }
             DisposeProcess();
             var extensionRoot = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? throw new InvalidOperationException("Unable to locate the extension directory.");
             var manifest = RuntimeManifest.Load(extensionRoot);
@@ -79,15 +83,24 @@ internal sealed class SidecarSupervisor : IDisposable
                 || response.Value<string>("runtimeVersion") != "1.1.0"
                 || response.Value<string>("platform") != options.PlatformId)
                 throw new InvalidDataException("Sidecar handshake response is incompatible with this extension.");
-            var url = response.Value<string>("launchUrl") ?? throw new InvalidDataException("Sidecar did not return a launch URL.");
-            var parsed = new Uri(url);
-            if (parsed.Scheme != Uri.UriSchemeHttp || parsed.Host != "127.0.0.1" || string.IsNullOrEmpty(parsed.Fragment)) throw new InvalidDataException("Sidecar returned an unsafe launch URL.");
+            var parsed = ValidateLaunchUrl(response.Value<string>("launchUrl"));
             origin = new Uri(parsed.GetLeftPart(UriPartial.Authority));
             log($"Sidecar started for {options.PlatformId} at {origin}.");
             return parsed;
         }
         catch { DisposeProcess(); throw; }
         finally { lifecycle.Release(); }
+    }
+
+    internal static Uri ValidateLaunchUrl(string? value, Uri? expectedOrigin = null)
+    {
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var target)
+            || target.Scheme != Uri.UriSchemeHttp || target.Host != "127.0.0.1"
+            || !string.IsNullOrEmpty(target.UserInfo) || !target.Fragment.StartsWith("#token=", StringComparison.Ordinal)
+            || target.Fragment.Length <= "#token=".Length
+            || (expectedOrigin is not null && target.GetLeftPart(UriPartial.Authority) != expectedOrigin.GetLeftPart(UriPartial.Authority)))
+            throw new InvalidDataException("Sidecar returned an unsafe or unauthenticated launch URL.");
+        return target;
     }
 
     internal async Task<JToken> RequestAsync(string method, CancellationToken cancellationToken = default)
@@ -138,9 +151,11 @@ internal sealed class SidecarSupervisor : IDisposable
         var repositories = configuration["repositories"] as JArray ?? new JArray();
         var source = repositories.OfType<JObject>().FirstOrDefault(item => item.Value<string>("id") == sourceId)
             ?? throw new InvalidDataException("Credential callback source is not configured.");
-        var configuredProvider = source.Value<string>("provider") ?? InferProvider(source.Value<string>("url") ?? string.Empty);
+        var configuredProvider = SourceProvider(source);
         if (configuredProvider != provider) throw new InvalidDataException("Credential callback provider does not match its configured source.");
     }
+
+    internal static string SourceProvider(JObject source) => source.Value<string>("provider") ?? InferProvider(source.Value<string>("url") ?? string.Empty);
 
     private static string InferProvider(string url)
     {

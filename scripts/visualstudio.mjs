@@ -20,6 +20,7 @@ if (command === "lint") {
   run("dotnet", ["build", project, "--nologo", "--configuration", "Release", "--no-restore", "-warnaserror", "/p:CreateVsixContainer=false"]);
 } else if (command === "test") {
   run("dotnet", ["run", "--project", resolve(root, "packages/visualstudio-plugin/test/AIMarketplace.VisualStudio.Tests/AIMarketplace.VisualStudio.Tests.csproj"), "--configuration", "Release", "/p:CreateVsixContainer=false"]);
+  run("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", resolve(root, "packages/visualstudio-plugin/test/vsix-validation.tests.ps1")]);
 } else if (command === "build") {
   run("dotnet", ["build", solution, "--nologo", "--configuration", "Release"]);
 } else if (command === "prepare") {
@@ -42,6 +43,7 @@ if (command === "lint") {
     await rm(target, { force: true });
     throw new Error(`Generated VSIX identity version '${generatedVersion}' does not match package version '${version}'.`);
   }
+  run("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", resolve(root, "scripts/validate-visualstudio-vsix.ps1"), "-Path", target, "-ExpectedVersion", version]);
   process.stdout.write(`Created ${target}\n`);
 } else {
   throw new Error(`Unknown Visual Studio command '${command}'.`);
@@ -91,13 +93,16 @@ async function prepareRuntime(version) {
     await copyFile(source, target);
   }
   await cp(resolve(root, "plugins/ai-marketplace/dashboard"), dashboardRoot, { recursive: true });
+  await mkdir(resolve(projectRoot, "Assets"), { recursive: true });
+  await copyFile(resolve(root, "plugins/ai-marketplace/assets/ai-marketplace.png"), resolve(projectRoot, "Assets/ai-marketplace.png"));
   const files = [
     "Runtime/win-x64/node.exe",
     "Runtime/win-arm64/node.exe",
     "Sidecar/ai-marketplace.cjs",
     "Dashboard/index.html",
     "Dashboard/app.js",
-    "Dashboard/styles.css"
+    "Dashboard/styles.css",
+    "Assets/ai-marketplace.png"
   ];
   const entries = [];
   for (const relative of files) entries.push({ path: relative, sha256: await sha256(resolve(projectRoot, relative)) });

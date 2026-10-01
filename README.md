@@ -84,7 +84,13 @@ VS Code and Cursor use their native extension update mechanisms. For local devel
 
 ### Install in Visual Studio
 
-On Windows, run `powershell -File scripts/download-visualstudio-runtimes.ps1` once, then `npm.cmd run package:visualstudio`. Close Visual Studio and open `dist/ai-marketplace-visualstudio-<version>.vsix` to install it. The extension appears under **View > Other Windows > AI Marketplace**; its commands and settings are also under **Tools > AI Marketplace** and **Tools > Options > AI Marketplace**.
+On Windows, run `powershell -File scripts/download-visualstudio-runtimes.ps1` once, then `npm.cmd run package:visualstudio`. Close Visual Studio and open `dist/ai-marketplace-visualstudio-<version>.vsix` to install it. Open the tab using **Tools > Open AI Marketplace**. Settings are available through **Tools > AI Marketplace Settings...** and **Tools > Options > AI Marketplace**.
+
+Visual Studio starts with no repository configured and does not use a hardcoded fallback or install repository-designated default packages. Open the marketplace's **Auto Updates** tab and find **Marketplace sources**. Enter a source ID, repository URL, and branch, then select **Add a repository** and confirm the plan. Multiple GitHub, Azure DevOps, and GitLab sources are supported. Repository configuration is saved in Visual Studio settings; credentials remain in Windows Credential Manager.
+
+Use **Set repository credential...** in the tool window's native toolbar (or **Tools > Set Repository Credential...**) to save a shared provider credential or a credential for a configured repository. Supported methods match VS Code: GitHub PAT/access token, Azure DevOps PAT or Microsoft Entra/OAuth access token, and GitLab access token or OAuth access token. Token input is masked, and the dialog can remove saved credentials. Saving a credential from the toolbar refreshes the catalog and reconnects the page. Repository-specific credentials are used after shared authentication is rejected.
+
+The tool window recreates its browser after docking, changing native parents, or reopening. **Reload marketplace** remains available outside the browser if the page or browser process fails. Reconnecting resets page-local selections and unconfirmed review dialogs; saved repository settings and installed packages are preserved.
 
 The development artifact is unsigned. Publisher signing and public Visual Studio Marketplace publication are intentionally deferred. A WebView2 Runtime is required by Visual Studio.
 

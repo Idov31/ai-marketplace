@@ -1,7 +1,7 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { resolve } from "node:path";
-import { packageTypes, type DashboardDetailQuery, type DashboardPlanRequest, type DashboardQuery, type DashboardScope, type DashboardSourceInput, type PackageType } from "@ai-marketplace/core";
+import { packageTypes, repositoryProviders, type RepositoryProvider, type DashboardDetailQuery, type DashboardPlanRequest, type DashboardQuery, type DashboardScope, type DashboardSourceInput, type PackageType } from "@ai-marketplace/core";
 import { DashboardApplicationError } from "./dashboardApplication.js";
 import type { DashboardApplication, DashboardEvent } from "./dashboardApplication.js";
 import type { NodeMarketplaceStorage } from "./nodeStorage.js";
@@ -416,7 +416,8 @@ function isRecord(value: unknown): value is Record<string, unknown> { return typ
 function assertKeys(value: Record<string, unknown>, allowed: readonly string[]): void { const unknown = Object.keys(value).find((key) => !allowed.includes(key)); if (unknown) throw validation(`Unknown plan field '${unknown}'.`); }
 function parseDashboardSource(value: unknown): DashboardSourceInput {
   if (!isRecord(value)) throw validation("Source plan requires a source object.");
-  assertKeys(value, ["id", "url", "label", "branch", "enabled", "allowDefaultPackages", "packageFolders"]);
+  assertKeys(value, ["id", "url", "provider", "label", "branch", "enabled", "allowDefaultPackages", "packageFolders"]);
+  if (value.provider !== undefined && (typeof value.provider !== "string" || !repositoryProviders.includes(value.provider as RepositoryProvider))) throw validation("Source provider is unsupported.");
   if (typeof value.id !== "string" || typeof value.url !== "string" || !value.id || !value.url) throw validation("Source plan requires non-empty id and url strings.");
   if (value.label !== undefined && typeof value.label !== "string") throw validation("Source label must be a string.");
   if (value.branch !== undefined && typeof value.branch !== "string") throw validation("Source branch must be a string.");
@@ -438,6 +439,7 @@ function parseDashboardSource(value: unknown): DashboardSourceInput {
   return {
     id: value.id,
     url: value.url,
+    ...(value.provider === undefined ? {} : { provider: value.provider as RepositoryProvider }),
     ...(value.label === undefined ? {} : { label: value.label }),
     ...(value.branch === undefined ? {} : { branch: value.branch }),
     ...(value.enabled === undefined ? {} : { enabled: value.enabled }),

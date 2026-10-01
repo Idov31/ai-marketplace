@@ -12,4 +12,10 @@ public sealed class MarketplaceToolWindow : ToolWindowPane
         Caption = "AI Marketplace";
         Content = new MarketplaceToolWindowControl();
     }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing && Content is MarketplaceToolWindowControl control) control.Dispose();
+        base.Dispose(disposing);
+    }
 }

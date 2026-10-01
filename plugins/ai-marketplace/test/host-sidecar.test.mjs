@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { access, mkdir, mkdtemp } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
@@ -7,7 +7,7 @@ import { once } from "node:events";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-const sidecar = fileURLToPath(new URL("../bin/ai-marketplace.cjs", import.meta.url));
+const sidecar = process.env.AI_MARKETPLACE_TEST_SIDECAR ?? fileURLToPath(new URL("../bin/ai-marketplace.cjs", import.meta.url));
 
 function frame(message) {
   const body = Buffer.from(JSON.stringify(message));
@@ -51,6 +51,29 @@ test("Visual Studio sidecar handshakes over framed stdio without persisting boot
   assert.equal(initialized.protocolVersion, 1);
   assert.equal(initialized.platform, "codex");
   assert.match(initialized.launchUrl, /^http:\/\/127\.0\.0\.1:\d+\/#token=/);
+  const image = await fetch(`${initialized.origin}/assets/ai-marketplace.png`);
+  assert.equal(image.status, 200);
+  assert.equal(image.headers.get("content-type"), "image/png");
+  assert.deepEqual(Buffer.from(await image.arrayBuffer()), await readFile(new URL("../assets/ai-marketplace.png", import.meta.url)));
+  for (const method of ["launch", "diagnose"]) {
+    child.stdin.write(frame({ protocolVersion: 1, type: "request", id: method, method, params: {} }));
+    while (true) {
+      const message = await next();
+      if (message.type === "request" && message.method === "configuration.get") child.stdin.write(frame({ protocolVersion: 1, type: "response", id: message.id, result: { config: { schemaVersion: 1 } } }));
+      else if (message.type === "request" && message.method === "credentials.get") assert.fail("Unconfigured Visual Studio must not request repository credentials.");
+      else if (message.type === "response" && message.id === method) {
+        assert.equal(message.error, undefined);
+        if (method === "launch") {
+          assert.equal(new URL(message.result.launchUrl).origin, new URL(initialized.launchUrl).origin);
+          assert.notEqual(message.result.launchUrl, initialized.launchUrl);
+        } else {
+          assert.equal(message.result.configurationRequired, true);
+          assert.equal(message.result.connected, false);
+        }
+        break;
+      }
+    }
+  }
   await assert.rejects(access(join(workspace, ".ai_marketplace", "dashboard.json")), { code: "ENOENT" });
   child.stdin.write(frame({ protocolVersion: 1, type: "request", id: "stop", method: "shutdown", params: {} }));
   while (true) {
