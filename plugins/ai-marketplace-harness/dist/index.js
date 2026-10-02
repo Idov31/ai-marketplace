@@ -11967,8 +11967,10 @@ var require_dashboardModel = __commonJS({
     exports.dashboardMaximumPageSize = 100;
     function buildDashboardModel(input) {
       const query = normalizeDashboardQuery(input.query);
-      const catalog = input.catalog.filter(isCodexPackage);
-      const installed = input.installed.filter(isCodexInstallation);
+      const platform = input.platform ?? "codex";
+      const scopes = input.scopes ?? ["workspace", "global"];
+      const catalog = input.catalog.filter((pkg) => isDashboardPackage(pkg, platform, scopes));
+      const installed = input.installed.filter((item) => isDashboardInstallation(item, platform, scopes));
       const serialized = (0, marketplaceModel_1.toSerializableMarketplaceModel)({
         packages: catalog,
         installed,
@@ -11976,20 +11978,20 @@ var require_dashboardModel = __commonJS({
         autoUpdateEnabled: input.preferences.autoUpdate,
         autoInstallGroups: input.preferences.autoInstallGroups,
         knownGroups: (0, groupInstall_1.collectPackageGroups)(catalog, installed),
-        defaultPlatform: "codex"
+        defaultPlatform: platform
       });
-      const available2 = serialized.packages.map((row) => ({ ...sanitizeAvailable(row), kind: "available" })).filter((row) => row.installOptions.length > 0);
-      const installedRows = serialized.installed.map((row) => ({ ...sanitizeInstalled(row), kind: "installed" })).sort((left, right) => Number(right.updateAvailable) - Number(left.updateAvailable) || left.name.localeCompare(right.name));
+      const available2 = serialized.packages.map((row) => ({ ...sanitizeAvailable(row, platform, scopes), kind: "available" })).filter((row) => row.installOptions.length > 0);
+      const installedRows = serialized.installed.map((row) => ({ ...sanitizeInstalled(row, platform, scopes), kind: "installed" })).sort((left, right) => Number(right.updateAvailable) - Number(left.updateAvailable) || left.name.localeCompare(right.name));
       const allRows = query.tab === "available" ? available2 : query.tab === "updates" ? installedRows.filter((row) => row.updateAvailable) : installedRows;
       const filtered = allRows.filter((row) => matchesQuery(row, query));
       const totalPages = Math.max(1, Math.ceil(filtered.length / query.pageSize));
       const page = Math.min(query.page, totalPages);
       const start = (page - 1) * query.pageSize;
-      const fingerprints = dashboardFingerprints(catalog, installed, input.preferences);
+      const fingerprints = dashboardFingerprints(catalog, installed, input.preferences, platform, scopes);
       return {
         schemaVersion: 1,
-        platform: "codex",
-        scopes: ["workspace", "global"],
+        platform,
+        scopes,
         tab: query.tab,
         configured: input.configured,
         preferences: normalizePreferences(input.preferences),
@@ -12028,15 +12030,15 @@ var require_dashboardModel = __commonJS({
       const row = model.rows.find((candidate) => candidate.kind === query.kind && rowIdentity(candidate) === identity && (query.kind === "available" || candidate.kind === "installed" && candidate.scope === query.scope));
       return row ? { row, fingerprints: model.fingerprints } : void 0;
     }
-    function dashboardFingerprints(catalog, installed, preferences) {
-      const catalogValue = catalog.filter(isCodexPackage).map((pkg) => ({
+    function dashboardFingerprints(catalog, installed, preferences, platform = "codex", scopes = ["workspace", "global"]) {
+      const catalogValue = catalog.filter((pkg) => isDashboardPackage(pkg, platform, scopes)).map((pkg) => ({
         identity: (0, marketplaceModel_1.packageIdentity)(pkg),
         version: pkg.manifest.version,
         revision: pkg.sourceRevision ?? "",
-        delivery: pkg.manifest.delivery.filter(isDashboardScope).sort(),
+        delivery: pkg.manifest.delivery.filter((scope) => scopes.includes(scope)).sort(),
         migrations: pkg.manifest.migrations ?? []
       })).sort(compareIdentity);
-      const stateValue = installed.filter(isCodexInstallation).map((item) => ({
+      const stateValue = installed.filter((item) => isDashboardInstallation(item, platform, scopes)).map((item) => ({
         identity: (0, marketplaceModel_1.installedIdentity)(item),
         scope: item.scope,
         version: item.version,
@@ -12055,31 +12057,32 @@ var require_dashboardModel = __commonJS({
     function rowIdentity(row) {
       return `${row.sourceId ?? "legacy"}:${row.qualifiedName}`;
     }
-    function sanitizeAvailable(row) {
-      const installOptions = row.installOptions.filter(isCodexLocalAction);
-      const actions = sanitizeActions(row.primaryAction, row.moreActions);
-      return { ...row, platforms: ["codex"], installOptions, ...actions };
+    function sanitizeAvailable(row, platform, scopes) {
+      const selectedPlatform = platform ?? "codex";
+      const selectedScopes = scopes ?? ["workspace", "global"];
+      const installOptions = row.installOptions.filter((action) => isDashboardAction(action, selectedPlatform, selectedScopes));
+      const actions = sanitizeActions(row.primaryAction, row.moreActions, selectedPlatform, selectedScopes);
+      return { ...row, platforms: [selectedPlatform], installOptions, ...actions };
     }
-    function sanitizeInstalled(row) {
-      const installOptions = row.installOptions.filter(isCodexLocalAction);
-      return { ...row, installOptions, ...sanitizeActions(row.primaryAction, row.moreActions) };
+    function sanitizeInstalled(row, platform, scopes) {
+      const selectedPlatform = platform ?? "codex";
+      const selectedScopes = scopes ?? ["workspace", "global"];
+      const installOptions = row.installOptions.filter((action) => isDashboardAction(action, selectedPlatform, selectedScopes));
+      return { ...row, installOptions, ...sanitizeActions(row.primaryAction, row.moreActions, selectedPlatform, selectedScopes) };
     }
-    function sanitizeActions(primary, more) {
-      const eligiblePrimary = primary && isCodexLocalAction(primary) ? primary : void 0;
-      const eligibleMore = more.filter(isCodexLocalAction);
+    function sanitizeActions(primary, more, platform, scopes) {
+      const eligiblePrimary = primary && isDashboardAction(primary, platform, scopes) ? primary : void 0;
+      const eligibleMore = more.filter((action) => isDashboardAction(action, platform, scopes));
       return { ...eligiblePrimary ? { primaryAction: eligiblePrimary } : {}, moreActions: eligibleMore };
     }
-    function isCodexLocalAction(action) {
-      return (action.platform === void 0 || action.platform === "codex") && (action.scope === void 0 || isDashboardScope(action.scope));
+    function isDashboardAction(action, platform, scopes) {
+      return (action.platform === void 0 || action.platform === platform) && (action.scope === void 0 || scopes.includes(action.scope));
     }
-    function isCodexPackage(pkg) {
-      return pkg.manifest.platforms.includes("codex") && pkg.manifest.delivery.some(isDashboardScope);
+    function isDashboardPackage(pkg, platform, scopes) {
+      return pkg.manifest.platforms.includes(platform) && pkg.manifest.delivery.some((scope) => scopes.includes(scope));
     }
-    function isCodexInstallation(item) {
-      return item.platform === "codex" && isDashboardScope(item.scope);
-    }
-    function isDashboardScope(scope) {
-      return scope === "workspace" || scope === "global";
+    function isDashboardInstallation(item, platform, scopes) {
+      return item.platform === platform && scopes.includes(item.scope);
     }
     function normalizeDashboardQuery(query) {
       const page = Number.isSafeInteger(query?.page) && (query?.page ?? 0) > 0 ? query.page : 1;
@@ -16322,14 +16325,14 @@ async function readHostConfig(storage, policy2) {
 }
 function toMarketplaceConfig(raw, policy2) {
   const packageFolders = normalizedFolders(raw.packageFolders);
-  const sources = raw.repositories?.map((source) => normalizeSource(source, packageFolders));
+  const sources = raw.repositories?.map((source) => normalizeSource(policy2.allowDefaultPackages === false ? { ...source, allowDefaultPackages: false } : source, packageFolders));
   assertCredentialIdCollisions(sources ?? []);
   const legacy = (0, import_core.parseGitHubRepo)(import_core.defaultGitHubRepositoryUrl);
   return {
-    repository: legacy.fullName,
+    repository: policy2.useDefaultRepository === false ? "" : legacy.fullName,
     branch: "main",
     packageFolders,
-    ...sources && sources.length > 0 ? { repositories: sources } : {},
+    ...policy2.useDefaultRepository === false ? { repositories: sources ?? [] } : sources && sources.length > 0 ? { repositories: sources } : {},
     platformPathOverrides: { [policy2.platform]: normalizedOverrides(raw.platformPathOverrides) },
     defaultPlatform: policy2.platform,
     autoUpdateEnabled: raw.autoUpdate === true,
@@ -16540,13 +16543,12 @@ var NodeMarketplaceStorage = class {
     await rm(target, { recursive: true, force: true });
   }
   root(scope) {
-    return scope === "workspace" ? this.workspaceRoot : this.globalRoot;
+    return scope === "global" ? this.globalRoot : this.workspaceRoot;
   }
   async assertSafe(scope, relativePath, allowMissing = true) {
     return this.safeTarget(scope, relativePath, allowMissing);
   }
   async safeTarget(scope, relativePath, allowMissing) {
-    if (scope === "cloud") throw new SecurityError("Cloud scope is not supported by the marketplace CLI.");
     const root = this.root(scope);
     const target = safeChild(root, relativePath);
     await assertNoSymlinkPath(root, target, allowMissing);
@@ -16651,6 +16653,10 @@ function compact(values) {
 
 // packages/marketplace-node-cli/src/mcpScriptRunner.ts
 var maximumOutputLength = 64 * 1024;
+
+// packages/marketplace-node-cli/src/hostProtocol.ts
+import { Buffer as Buffer2 } from "node:buffer";
+var maximumHostFrameBytes = 64 * 1024;
 
 // plugins/ai-marketplace-harness/src/mcpScriptRunner.ts
 import { spawn as spawn2 } from "node:child_process";

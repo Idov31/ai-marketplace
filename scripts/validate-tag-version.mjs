@@ -8,18 +8,23 @@ if (!tag) throw new Error("Provide a release tag or set GITHUB_REF_NAME.");
 
 const releases = {
   vscode: ["packages/vscode-plugin/package.json"],
+  visualstudio: ["packages/visualstudio-plugin/package.json", "packages/visualstudio-plugin/src/AIMarketplace.VisualStudio/source.extension.vsixmanifest"],
   codex: ["plugins/ai-marketplace/package.json", "plugins/ai-marketplace/.codex-plugin/plugin.json"],
   claude: ["plugins/ai-marketplace-claude/package.json", "plugins/ai-marketplace-claude/.claude-plugin/plugin.json", ".claude-plugin/marketplace.json"]
 };
 
-const match = /^(vscode|codex|claude)-v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.exec(tag);
-if (!match) throw new Error(`Release tag '${tag}' must match vscode-vX.Y.Z, codex-vX.Y.Z, or claude-vX.Y.Z.`);
+const match = /^(vscode|visualstudio|codex|claude)-v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.exec(tag);
+if (!match) throw new Error(`Release tag '${tag}' must match vscode-vX.Y.Z, visualstudio-vX.Y.Z, codex-vX.Y.Z, or claude-vX.Y.Z.`);
 
 const [, target, major, minor, patch] = match;
 const expected = `${major}.${minor}.${patch}`;
 for (const file of releases[target]) {
-  const manifest = JSON.parse(readFileSync(resolve(root, file), "utf8"));
-  const actual = file === ".claude-plugin/marketplace.json" ? manifest.plugins?.[0]?.version : manifest.version;
+  const content = readFileSync(resolve(root, file), "utf8");
+  const actual = file.endsWith(".vsixmanifest")
+    ? /<Identity\b[^>]*\bVersion="([^"]+)"/.exec(content)?.[1]
+    : file === ".claude-plugin/marketplace.json"
+      ? JSON.parse(content).plugins?.[0]?.version
+      : JSON.parse(content).version;
   if (actual !== expected) throw new Error(`${file} version '${actual}' does not match release tag '${tag}'.`);
 }
 

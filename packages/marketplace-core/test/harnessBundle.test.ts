@@ -27,8 +27,17 @@ function bundleFiles(overrides: Partial<Record<"manifest" | "patch", string>> = 
 describe("DeepSeek Harness manifest and bundle validation", () => {
   it("accepts each bundle package type and rejects malformed bundle declarations", () => {
     for (const type of ["command", "mcp", "agent", "hook"] as const) {
-      assert.equal(validateHarnessBundle(pkg(type), bundleFiles()).name, "dsh-example");
+      const files = type === "agent" ? bundleFiles({ manifest: JSON.stringify({ name: "dsh-example", version: "1.0.0", main: "index.js", dsh: { bundle: { patch: "./cordis.patch.yml", presetRoot: "./presets" } } }) }) : bundleFiles();
+      if (type === "agent") {
+        files.push({ relativePath: "presets/example/agent.cordis.yml", content: bytes("[]\n") });
+      }
+      if (type === "mcp") {
+        files.push({ relativePath: "install.py", content: bytes("pass\n") }, { relativePath: "uninstall.py", content: bytes("pass\n") });
+      }
+      assert.equal(validateHarnessBundle(pkg(type), files).name, "dsh-example");
     }
+    assert.throws(() => validateHarnessBundle(pkg("mcp"), bundleFiles()), /root-level 'install.py'/);
+    assert.throws(() => validateHarnessBundle(pkg("agent"), bundleFiles()), /presetRoot/);
     assert.throws(() => validateHarnessBundle(pkg(), bundleFiles({ manifest: "{" })), /invalid package.json/);
     assert.throws(() => validateHarnessBundle(pkg(), bundleFiles({ patch: "[unterminated" })), /invalid or empty/);
     assert.throws(() => validateHarnessBundle(pkg(), bundleFiles({ patch: "- insert:\n    - id: other\n      name: other-package\n" })), /contribution/);

@@ -35,7 +35,8 @@ import {
   type InstalledPackage,
   type MarketplaceConfig,
   type MarketplacePackage,
-  type MarketplaceService
+  type MarketplaceService,
+  type Platform
 } from "@ai-marketplace/core";
 
 export interface DashboardConfigurationState {
@@ -68,9 +69,13 @@ export interface DashboardApplicationDependencies {
   readonly configuration: DashboardConfigurationAdapter;
   readonly refreshCatalog: () => Promise<DashboardCatalogRefreshResult>;
   readonly withOperationLock: <T>(roots: readonly DashboardScope[], action: () => Promise<T>) => Promise<T>;
+  readonly platform?: Platform;
+  readonly supportedScopes?: readonly DashboardScope[];
+  readonly configurationPath?: string;
   readonly diagnose?: () => Promise<Readonly<Record<string, unknown>>>;
   readonly now?: () => Date;
   readonly planId?: () => string;
+  readonly redact?: (value: string) => string;
 }
 
 export type DashboardEvent =
@@ -131,10 +136,10 @@ export class DashboardApplication {
       this.refreshStatus = {
         state: result.warnings.length > 0 ? "partial" : "online",
         refreshedAt,
-        warnings: redactWarnings(result.warnings)
+        warnings: result.warnings.map((warning) => this.redact(warning))
       };
     } catch (error) {
-      this.refreshStatus = { state: "offline", refreshedAt, warnings: [redactSensitive(safeMessage(error))] };
+      this.refreshStatus = { state: "offline", refreshedAt, warnings: [this.redact(safeMessage(error))] };
     }
     this.emit({ event: "catalog", data: this.refreshStatus });
     return this.getModel();
@@ -142,13 +147,13 @@ export class DashboardApplication {
 
   public async diagnose(): Promise<Readonly<Record<string, unknown>>> {
     const result = this.dependencies.diagnose ? await this.dependencies.diagnose() : await this.dependencies.service.diagnose();
-    return { ...result, refresh: this.refreshStatus };
+    return sanitizeStrings({ ...result, refresh: this.refreshStatus }, (value) => this.redact(value)) as Readonly<Record<string, unknown>>;
   }
 
   public async createPlan(request: DashboardPlanRequest): Promise<DashboardPlan> {
     this.pruneExpiredPlans();
     const input = await this.modelInput();
-    const fingerprints = dashboardFingerprints(input.catalog, input.installed, input.preferences);
+    const fingerprints = dashboardFingerprints(input.catalog, input.installed, input.preferences, this.platform(), this.scopes());
     const configurationState = await this.dependencies.configuration.read();
     const createdAt = this.now();
     const planId = this.dependencies.planId?.() ?? randomBytes(18).toString("base64url");
@@ -161,7 +166,7 @@ export class DashboardApplication {
         action: request.action,
         summary: change.summary,
         changes: change.changes,
-        paths: [{ scope: "global", path: ".ai_marketplace/codex.json", effect: "config" }]
+        paths: [{ scope: "global", path: this.dependencies.configurationPath ?? ".ai_marketplace/codex.json", effect: "config" }]
       };
       const dto: DashboardPlan = { ...base, destructive: request.action === "source-remove", items: [item], skipped: [], ineligible: [] };
       this.plans.set(planId, { dto, configurationRevision: configurationState.revision, operations: [], configurationValue: change.nextValue });
@@ -197,7 +202,7 @@ export class DashboardApplication {
       await this.dependencies.withOperationLock(roots, async () => {
         const configuration = await this.dependencies.configuration.read();
         const input = await this.modelInput();
-        const current = dashboardFingerprints(input.catalog, input.installed, input.preferences);
+        const current = dashboardFingerprints(input.catalog, input.installed, input.preferences, this.platform(), this.scopes());
         if (Date.parse(stored.dto.expiresAt) <= this.now().getTime()) throw new DashboardApplicationError("EXPIRED_PLAN", "The dashboard plan expired while waiting for the operation lock; replan before applying.");
         if (stored.configurationRevision !== configuration.revision || !sameFingerprints(stored.dto.fingerprints, current)) throw new DashboardApplicationError("STALE_PLAN", "Catalog, installed state, or configuration changed; replan before applying.");
         if (stored.configurationValue !== undefined) {
@@ -222,7 +227,7 @@ export class DashboardApplication {
     }
     this.plans.delete(planId);
     const nextInput = await this.modelInput();
-    const fingerprints = dashboardFingerprints(nextInput.catalog, nextInput.installed, nextInput.preferences);
+    const fingerprints = dashboardFingerprints(nextInput.catalog, nextInput.installed, nextInput.preferences, this.platform(), this.scopes());
     this.emit({ event: "operation", data: { planId, status: "applied" } });
     this.emit({ event: "state", data: { reason: "apply", planId } });
     return { planId, applied: true, count: stored.dto.items.length - failures.length, fingerprints, ...(failures.length === 0 ? {} : { failures }) };
@@ -235,15 +240,18 @@ export class DashboardApplication {
       installed: await this.dependencies.service.listInstalled(),
       configured: configuration.configured,
       preferences: configuration.preferences,
-      refresh: this.refreshStatus
+      refresh: this.refreshStatus,
+      platform: this.platform(),
+      scopes: this.scopes()
     };
   }
 
   private async selectPackageOperations(request: Exclude<DashboardPlanRequest, { readonly action: "set-preferences" | "source-add" | "source-update" | "source-remove" }>, input: DashboardModelInput): Promise<{ operations: readonly StoredPackageOperation[]; skipped: readonly DashboardIneligibleItem[]; ineligible: readonly DashboardIneligibleItem[] }> {
     if (request.action === "install-group") {
+      if (request.scope === "cloud") return { operations: [], skipped: [], ineligible: [{ identity: `group:${request.group}`, reason: "Group installation is not supported for cloud scope." }] };
       const plans = await this.dependencies.service.planGroup(request.group, request.scope);
-      const operations = plans.filter((plan) => plan.platform === "codex").map((plan) => this.installOperation(plan.pkg, plan.pkg.manifest.type === "mcp" ? "global" : request.scope));
-      return { operations, skipped: [], ineligible: operations.length === 0 ? [{ identity: `group:${request.group}`, reason: "No eligible Codex packages remain in this group and scope." }] : [] };
+      const operations = plans.filter((plan) => plan.platform === this.platform()).map((plan) => this.installOperation(plan.pkg, plan.pkg.manifest.type === "mcp" ? "global" : request.scope));
+      return { operations, skipped: [], ineligible: operations.length === 0 ? [{ identity: `group:${request.group}`, reason: `No eligible ${this.platform()} packages remain in this group and scope.` }] : [] };
     }
     if (request.action === "sync") return this.syncOperations(request.scope, input);
     const identities = uniqueIdentities(request.identities);
@@ -257,13 +265,13 @@ export class DashboardApplication {
   }
 
   private syncOperations(scope: DashboardScope | undefined, input: DashboardModelInput): { operations: readonly StoredPackageOperation[]; skipped: readonly DashboardIneligibleItem[]; ineligible: readonly DashboardIneligibleItem[] } {
-    const allInstalled = input.installed.filter(isCodexInstalled);
+    const allInstalled = input.installed.filter((item) => isSelectedInstalled(item, this.platform(), this.scopes()));
     const installed = allInstalled.filter((item) => !scope || item.scope === scope);
-    const catalog = input.catalog.filter(isCodexPackage);
+    const catalog = input.catalog.filter((pkg) => isSelectedPackage(pkg, this.platform(), this.scopes()));
     const config = this.dependencies.marketplaceConfig();
     const installs = scope === "workspace" ? [] : [
-      ...defaultPackageInstallPlans(catalog, allInstalled, "codex", config).filter((item) => item.platform === "codex"),
-      ...autoInstallGroupPlans(catalog, allInstalled, input.preferences.autoInstallGroups, "codex").filter((item) => item.platform === "codex")
+      ...defaultPackageInstallPlans(catalog, allInstalled, this.platform(), config).filter((item) => item.platform === this.platform()),
+      ...autoInstallGroupPlans(catalog, allInstalled, input.preferences.autoInstallGroups, this.platform()).filter((item) => item.platform === this.platform())
     ];
     const operations = new Map<string, StoredPackageOperation>();
     installs.forEach(({ pkg }) => operations.set(packageIdentity(pkg), this.installOperation(pkg, "global")));
@@ -280,10 +288,10 @@ export class DashboardApplication {
   }
 
   private lifecycleOperation(action: DashboardLifecycleAction, identity: string, requestedScope: DashboardScope | undefined, input: DashboardModelInput): StoredPackageOperation {
-    const pkg = input.catalog.find((candidate) => packageIdentity(candidate) === identity && isCodexPackage(candidate));
-    const installedMatches = input.installed.filter((candidate) => installedDashboardIdentity(candidate) === identity && isCodexInstalled(candidate) && (!requestedScope || candidate.scope === requestedScope));
+    const pkg = input.catalog.find((candidate) => packageIdentity(candidate) === identity && isSelectedPackage(candidate, this.platform(), this.scopes()));
+    const installedMatches = input.installed.filter((candidate) => installedDashboardIdentity(candidate) === identity && isSelectedInstalled(candidate, this.platform(), this.scopes()) && (!requestedScope || candidate.scope === requestedScope));
     if (action === "migrate") {
-      const candidates = planPackageMigrations(input.catalog.filter(isCodexPackage), input.installed.filter(isCodexInstalled)).eligible.filter((candidate) =>
+      const candidates = planPackageMigrations(input.catalog.filter((candidate) => isSelectedPackage(candidate, this.platform(), this.scopes())), input.installed.filter((candidate) => isSelectedInstalled(candidate, this.platform(), this.scopes()))).eligible.filter((candidate) =>
         (!requestedScope || candidate.predecessor.scope === requestedScope)
         && (packageIdentity(candidate.destination) === identity || installedDashboardIdentity(candidate.predecessor) === identity));
       if (candidates.length !== 1) throw new DashboardApplicationError(candidates.length === 0 ? "INELIGIBLE" : "VALIDATION", candidates.length === 0 ? "No eligible migration was found." : "Migration is ambiguous; choose a scope or a single package.");
@@ -291,7 +299,7 @@ export class DashboardApplication {
     }
     if (action === "install") {
       if (!pkg) throw new DashboardApplicationError("NOT_FOUND", "Catalog package was not found.");
-      const scope = pkg.manifest.type === "mcp" ? "global" : chooseInstallScope(pkg, requestedScope);
+      const scope = pkg.manifest.type === "mcp" ? "global" : chooseInstallScope(pkg, requestedScope, this.scopes());
       if (installedMatches.some((item) => item.scope === scope)) throw new DashboardApplicationError("INELIGIBLE", `Package is already installed in ${scope} scope.`);
       return this.installOperation(pkg, scope);
     }
@@ -307,35 +315,35 @@ export class DashboardApplication {
     const revision = pkg.manifest.previousVersion;
     if (!revision) throw new DashboardApplicationError("INELIGIBLE", "Package does not declare a previous version.");
     if (installed.version !== pkg.manifest.version) throw new DashboardApplicationError("INELIGIBLE", "Update to the current catalog version before reverting.");
-    return { item: packagePlanItem(action, pkg, installed.scope as DashboardScope, pathsForMutation(action, pkg, installed, this.dependencies.marketplaceConfig()), installed.version, undefined), pkg, installed, revision };
+    return { item: packagePlanItem(action, pkg, this.platform(), installed.scope as DashboardScope, pathsForMutation(action, pkg, installed, this.dependencies.marketplaceConfig(), this.platform()), installed.version, undefined), pkg, installed, revision };
   }
 
   private installOperation(pkg: MarketplacePackage, scope: DashboardScope): StoredPackageOperation {
-    return { item: packagePlanItem("install", pkg, scope, pathsForMutation("install", pkg, undefined, this.dependencies.marketplaceConfig(), scope), undefined, pkg.manifest.version), pkg };
+    return { item: packagePlanItem("install", pkg, this.platform(), scope, pathsForMutation("install", pkg, undefined, this.dependencies.marketplaceConfig(), this.platform(), scope), undefined, pkg.manifest.version), pkg };
   }
 
   private updateOperation(pkg: MarketplacePackage, installed: InstalledPackage): StoredPackageOperation {
-    return { item: packagePlanItem("update", pkg, installed.scope as DashboardScope, pathsForMutation("update", pkg, installed, this.dependencies.marketplaceConfig()), installed.version, pkg.manifest.version), pkg, installed };
+    return { item: packagePlanItem("update", pkg, this.platform(), installed.scope as DashboardScope, pathsForMutation("update", pkg, installed, this.dependencies.marketplaceConfig(), this.platform()), installed.version, pkg.manifest.version), pkg, installed };
   }
 
   private migrationOperation(pkg: MarketplacePackage, installed: InstalledPackage): StoredPackageOperation {
-    return { item: packagePlanItem("migrate", pkg, installed.scope as DashboardScope, pathsForMutation("migrate", pkg, installed, this.dependencies.marketplaceConfig()), installed.version, pkg.manifest.version), pkg, installed };
+    return { item: packagePlanItem("migrate", pkg, this.platform(), installed.scope as DashboardScope, pathsForMutation("migrate", pkg, installed, this.dependencies.marketplaceConfig(), this.platform()), installed.version, pkg.manifest.version), pkg, installed };
   }
 
   private uninstallOperation(installed: InstalledPackage): StoredPackageOperation {
-    return { item: installedPlanItem("uninstall", installed, pathsForMutation("uninstall", undefined, installed, this.dependencies.marketplaceConfig())), installed };
+    return { item: installedPlanItem("uninstall", installed, pathsForMutation("uninstall", undefined, installed, this.dependencies.marketplaceConfig(), this.platform())), installed };
   }
 
   private moveOperation(action: "hotload" | "offload", installed: InstalledPackage): StoredPackageOperation {
-    const offloaded = installed.installedPath === offloadRelativePath("codex", installed.type, installed.id);
+    const offloaded = installed.installedPath === offloadRelativePath(this.platform(), installed.type, installed.id);
     if (installed.type === "mcp") throw new DashboardApplicationError("INELIGIBLE", "MCP packages cannot be hotloaded or offloaded.");
     if ((action === "hotload") !== offloaded) throw new DashboardApplicationError("INELIGIBLE", `Package is already ${offloaded ? "offloaded" : "hotloaded"}.`);
-    return { item: installedPlanItem(action, installed, pathsForMutation(action, undefined, installed, this.dependencies.marketplaceConfig())), installed };
+    return { item: installedPlanItem(action, installed, pathsForMutation(action, undefined, installed, this.dependencies.marketplaceConfig(), this.platform())), installed };
   }
 
   private async applyPackageOperation(operation: StoredPackageOperation): Promise<void> {
     switch (operation.item.action) {
-      case "install": await this.dependencies.service.install(operation.pkg!, "codex", operation.item.scope); break;
+      case "install": await this.dependencies.service.install(operation.pkg!, this.platform(), operation.item.scope); break;
       case "update": await this.dependencies.service.update(operation.pkg!, operation.installed!); break;
       case "migrate": await this.dependencies.service.migrate(operation.pkg!, operation.installed!); break;
       case "revert": await this.dependencies.service.revert(operation.pkg!, operation.installed!, operation.revision!); break;
@@ -351,6 +359,9 @@ export class DashboardApplication {
   }
 
   private now(): Date { return this.dependencies.now?.() ?? new Date(); }
+  private platform(): Platform { return this.dependencies.platform ?? "codex"; }
+  private scopes(): readonly DashboardScope[] { return this.dependencies.supportedScopes ?? ["workspace", "global"]; }
+  private redact(value: string): string { return this.dependencies.redact?.(value) ?? redactSensitive(value); }
   private emit(event: DashboardEvent): void { this.listeners.forEach((listener) => listener(event)); }
 }
 
@@ -364,20 +375,20 @@ function uniqueIdentities(values: readonly string[]): readonly string[] {
   return identities;
 }
 
-function packagePlanItem(action: DashboardLifecycleAction, pkg: MarketplacePackage, scope: DashboardScope, paths: readonly DashboardAffectedPath[], version?: string, targetVersion?: string): DashboardPackagePlanItem {
-  return { kind: "package", identity: packageIdentity(pkg), packageId: pkg.manifest.id, qualifiedName: pkg.manifest.qualifiedName, sourceId: pkg.source.id, action, platform: "codex", scope, version, targetVersion, paths };
+function packagePlanItem(action: DashboardLifecycleAction, pkg: MarketplacePackage, platform: Platform, scope: DashboardScope, paths: readonly DashboardAffectedPath[], version?: string, targetVersion?: string): DashboardPackagePlanItem {
+  return { kind: "package", identity: packageIdentity(pkg), packageId: pkg.manifest.id, qualifiedName: pkg.manifest.qualifiedName, sourceId: pkg.source.id, action, platform, scope, version, targetVersion, paths };
 }
 
 function installedPlanItem(action: DashboardLifecycleAction, installed: InstalledPackage, paths: readonly DashboardAffectedPath[]): DashboardPackagePlanItem {
-  return { kind: "package", identity: installedDashboardIdentity(installed), packageId: installed.id, qualifiedName: installed.qualifiedName ?? installed.id, sourceId: installed.sourceId ?? "legacy", action, platform: "codex", scope: installed.scope as DashboardScope, version: installed.version, paths };
+  return { kind: "package", identity: installedDashboardIdentity(installed), packageId: installed.id, qualifiedName: installed.qualifiedName ?? installed.id, sourceId: installed.sourceId ?? "legacy", action, platform: installed.platform, scope: installed.scope as DashboardScope, version: installed.version, paths };
 }
 
-function pathsForMutation(action: DashboardLifecycleAction, pkg: MarketplacePackage | undefined, installed: InstalledPackage | undefined, config: MarketplaceConfig, requestedScope?: DashboardScope): readonly DashboardAffectedPath[] {
+function pathsForMutation(action: DashboardLifecycleAction, pkg: MarketplacePackage | undefined, installed: InstalledPackage | undefined, config: MarketplaceConfig, platform: Platform, requestedScope?: DashboardScope): readonly DashboardAffectedPath[] {
   const scope = (pkg?.manifest.type === "mcp" ? "global" : requestedScope ?? installed?.scope ?? "workspace") as DashboardScope;
   const state: DashboardAffectedPath = { scope, path: stateRelativePath(), effect: "state" };
   if (pkg?.manifest.type === "mcp" || installed?.type === "mcp") {
-    const destinationPayload = pkg ? mcpPayloadRelativePath("codex", pkg.source.id, pkg.manifest.id) : installed?.managedPayloadPath;
-    const paths: DashboardAffectedPath[] = [{ scope: "global", path: mcpConfigRelativePath("codex"), effect: "config" }];
+    const destinationPayload = pkg ? mcpPayloadRelativePath(platform, pkg.source.id, pkg.manifest.id) : installed?.managedPayloadPath;
+    const paths: DashboardAffectedPath[] = [{ scope: "global", path: mcpConfigRelativePath(platform), effect: "config" }];
     if (action === "uninstall") {
       if (installed?.managedPayloadPath) paths.push({ scope: "global", path: `${installed.managedPayloadPath}/uninstall.py`, effect: "execute" }, { scope: "global", path: installed.managedPayloadPath, effect: "delete" });
     } else if (action === "migrate") {
@@ -389,36 +400,40 @@ function pathsForMutation(action: DashboardLifecycleAction, pkg: MarketplacePack
     paths.push({ scope: "global", path: stateRelativePath(), effect: "state" });
     return paths;
   }
-  if (action === "install") return [{ scope, path: installRelativePath("codex", pkg!.manifest.type, pkg!.manifest.id, config.platformPathOverrides), effect: "write" }, state];
+  if (action === "install") return scope === "cloud" ? [{ scope, path: stateRelativePath(), effect: "state" }] : [{ scope, path: installRelativePath(platform, pkg!.manifest.type, pkg!.manifest.id, config.platformPathOverrides), effect: "write" }, state];
   if (action === "uninstall") return [...uninstallTargetPaths(installed!, config).map((path): DashboardAffectedPath => ({ scope, path, effect: "delete" })), state];
   if (action === "migrate") {
     const target = installed!.installedPath.startsWith(".offload/")
-      ? offloadRelativePath("codex", pkg!.manifest.type, pkg!.manifest.id)
-      : installRelativePath("codex", pkg!.manifest.type, pkg!.manifest.id, config.platformPathOverrides);
+      ? offloadRelativePath(platform, pkg!.manifest.type, pkg!.manifest.id)
+      : installed!.scope === "cloud" ? installed!.installedPath : installRelativePath(platform, pkg!.manifest.type, pkg!.manifest.id, config.platformPathOverrides);
     return [{ scope, path: installed!.installedPath, effect: "move-from" }, { scope, path: target, effect: "write" }, { scope, path: ".ai_marketplace/migration-journal.json", effect: "state" }, state];
   }
   if (action === "hotload" || action === "offload") {
-    const destination = action === "hotload" ? installRelativePath("codex", installed!.type, installed!.id, config.platformPathOverrides) : offloadRelativePath("codex", installed!.type, installed!.id);
+    const destination = action === "hotload" ? installRelativePath(platform, installed!.type, installed!.id, config.platformPathOverrides) : offloadRelativePath(platform, installed!.type, installed!.id);
     return [{ scope, path: installed!.installedPath, effect: "move-from" }, { scope, path: destination, effect: "move-to" }, state];
   }
   return [{ scope, path: installed!.installedPath, effect: "write" }, state];
 }
 
-function chooseInstallScope(pkg: MarketplacePackage, requested: DashboardScope | undefined): DashboardScope {
+function chooseInstallScope(pkg: MarketplacePackage, requested: DashboardScope | undefined, supportedScopes: readonly DashboardScope[]): DashboardScope {
   if (requested) {
-    if (!pkg.manifest.delivery.includes(requested)) throw new DashboardApplicationError("INELIGIBLE", `Package does not support ${requested} scope.`);
+    if (!supportedScopes.includes(requested) || !pkg.manifest.delivery.includes(requested)) throw new DashboardApplicationError("INELIGIBLE", `Package does not support ${requested} scope in this host.`);
     return requested;
   }
-  if (pkg.manifest.delivery.includes("workspace")) return "workspace";
-  if (pkg.manifest.delivery.includes("global")) return "global";
-  throw new DashboardApplicationError("INELIGIBLE", "Package has no Codex local delivery scope.");
+  for (const scope of ["workspace", "global", "cloud"] as const) if (supportedScopes.includes(scope) && pkg.manifest.delivery.includes(scope)) return scope;
+  throw new DashboardApplicationError("INELIGIBLE", `Package has no supported ${supportedScopes.join("/")} delivery scope.`);
 }
 
-function isCodexPackage(pkg: MarketplacePackage): boolean { return pkg.manifest.platforms.includes("codex") && (pkg.manifest.delivery.includes("workspace") || pkg.manifest.delivery.includes("global")); }
-function isCodexInstalled(item: InstalledPackage): item is InstalledPackage & { readonly scope: DashboardScope } { return item.platform === "codex" && (item.scope === "workspace" || item.scope === "global"); }
+function isSelectedPackage(pkg: MarketplacePackage, platform: Platform, scopes: readonly DashboardScope[]): boolean { return pkg.manifest.platforms.includes(platform) && pkg.manifest.delivery.some((scope) => scopes.includes(scope)); }
+function isSelectedInstalled(item: InstalledPackage, platform: Platform, scopes: readonly DashboardScope[]): item is InstalledPackage & { readonly scope: DashboardScope } { return item.platform === platform && scopes.includes(item.scope); }
 function sameIdentity(pkg: MarketplacePackage, installed: InstalledPackage): boolean { return installedDashboardIdentity(installed) === packageIdentity(pkg); }
 function installedDashboardIdentity(installed: InstalledPackage): string { return `${installed.sourceId ?? "legacy"}:${installed.qualifiedName ?? installed.id}`; }
 function sameFingerprints(left: DashboardFingerprints, right: DashboardFingerprints): boolean { return left.catalog === right.catalog && left.state === right.state; }
-function redactWarnings(warnings: readonly string[]): readonly string[] { return warnings.map(redactSensitive); }
 function redactSensitive(value: string): string { return value.replace(/(?:ghp|github_pat|glpat|azdopat)_[A-Za-z0-9_-]+/gi, "[REDACTED]"); }
 function safeMessage(error: unknown): string { return error instanceof Error ? error.message : String(error); }
+function sanitizeStrings(value: unknown, sanitize: (value: string) => string): unknown {
+  if (typeof value === "string") return sanitize(value);
+  if (Array.isArray(value)) return value.map((item) => sanitizeStrings(item, sanitize));
+  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, sanitizeStrings(item, sanitize)]));
+  return value;
+}

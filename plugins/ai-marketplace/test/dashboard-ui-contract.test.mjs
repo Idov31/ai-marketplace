@@ -8,6 +8,14 @@ const [html, script] = await Promise.all([
   readFile(new URL("app.js", dashboardRoot), "utf8")
 ]);
 
+test("repository form has explicit repository actions and no default-package opt-in", () => {
+  assert.match(html, /id="review-source"[^>]*>Add a repository</);
+  assert.match(script, /"Add a repository"/);
+  assert.match(script, /"Update a repository"/);
+  assert.match(script, /"Remove a repository"/);
+  assert.doesNotMatch(html + script, /source-defaults|Allow default packages|Review source changes/);
+});
+
 test("dashboard binds the frozen model and route contract", () => {
   for (const field of ["model.rows", "model.facets.types", "model.facets.groups", "model.facets.sources", "model.knownGroups", "model.refresh.warnings", "refresh.state"]) {
     assert.match(script, new RegExp(escapeRegExp(field)));

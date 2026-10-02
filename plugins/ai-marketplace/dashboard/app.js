@@ -25,7 +25,7 @@ async function initialize() {
     "available-count", "installed-count", "update-count", "search-filter", "type-filter", "group-filter",
     "source-filter", "scope-filter", "clear-filters", "updates-panel", "sync-button", "auto-update-toggle",
     "automatic-groups", "save-preferences", "source-action", "source-id", "source-url", "source-label",
-    "source-provider", "source-branch", "source-enabled", "source-defaults", "source-folders", "review-source", "bulk-toolbar",
+    "source-provider", "source-branch", "source-enabled", "source-folders", "review-source", "bulk-toolbar",
     "selected-count", "clear-selection", "results-title", "results-summary", "page-size", "package-results",
     "empty-state", "previous-page", "next-page", "page-status", "details-dialog", "details-title",
     "details-content", "plan-dialog", "plan-title", "plan-content", "confirm-plan", "diagnostics-dialog",
@@ -131,7 +131,7 @@ async function loadModel(options = {}) {
 }
 
 function assertDashboardModel(model) {
-  if (model?.schemaVersion !== 1 || model.platform !== "codex" || model.tab !== state.view || !Array.isArray(model.rows)) {
+  if (model?.schemaVersion !== 1 || !["codex", "cursor", "github-copilot", "claude"].includes(model.platform) || model.tab !== state.view || !Array.isArray(model.rows)) {
     throw new Error("Server returned an unsupported dashboard model.");
   }
 }
@@ -338,7 +338,6 @@ function planSourceConfiguration() {
   addOptional(source, "label", elements["source-label"].value.trim());
   addOptional(source, "branch", elements["source-branch"].value.trim());
   source.enabled = elements["source-enabled"].checked;
-  source.allowDefaultPackages = elements["source-defaults"].checked;
   const folders = parsePackageFolders(elements["source-folders"].value);
   if (folders === null) return;
   if (Object.keys(folders).length) source.packageFolders = folders;
@@ -669,10 +668,10 @@ function updateGroupInstallButton() {
 
 function updateSourceForm() {
   const removing = elements["source-action"].value === "source-remove";
-  for (const id of ["source-url", "source-provider", "source-label", "source-branch", "source-enabled", "source-defaults", "source-folders"]) {
+  for (const id of ["source-url", "source-provider", "source-label", "source-branch", "source-enabled", "source-folders"]) {
     elements[id].disabled = removing;
   }
-  elements["review-source"].textContent = removing ? "Review source removal" : "Review source changes";
+  elements["review-source"].textContent = removing ? "Remove a repository" : elements["source-action"].value === "source-update" ? "Update a repository" : "Add a repository";
 }
 
 function clearSelection() {
@@ -787,7 +786,7 @@ function planVersionLabel(item) {
   return `${item.version ?? "current"} → ${item.targetVersion ?? "latest"}`;
 }
 function reviewValue(value) { return value === undefined ? "not set" : JSON.stringify(value); }
-function scopeLabel(value) { return value === "global" ? "User profile" : value === "workspace" ? "Workspace" : String(value ?? ""); }
+function scopeLabel(value) { return value === "global" ? "User profile" : value === "workspace" ? "Workspace" : value === "cloud" ? "Cloud" : String(value ?? ""); }
 function labelForAction(action = "") {
   return ({
     install: "Install", update: "Update", revert: "Revert", uninstall: "Uninstall", hotload: "Hotload",

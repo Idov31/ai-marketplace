@@ -105,8 +105,8 @@ export class NodeMarketplaceStorage implements MarketplaceStorage {
     await rm(target, { recursive: true, force: true });
   }
 
-  public root(scope: "workspace" | "global"): string {
-    return scope === "workspace" ? this.workspaceRoot : this.globalRoot;
+  public root(scope: InstallScope): string {
+    return scope === "global" ? this.globalRoot : this.workspaceRoot;
   }
 
   public async assertSafe(scope: "workspace" | "global", relativePath: string, allowMissing = true): Promise<string> {
@@ -114,7 +114,6 @@ export class NodeMarketplaceStorage implements MarketplaceStorage {
   }
 
   private async safeTarget(scope: InstallScope, relativePath: string, allowMissing: boolean): Promise<string> {
-    if (scope === "cloud") throw new SecurityError("Cloud scope is not supported by the marketplace CLI.");
     const root = this.root(scope);
     const target = safeChild(root, relativePath);
     await assertNoSymlinkPath(root, target, allowMissing);
@@ -130,10 +129,10 @@ export class NodeMarketplaceStorage implements MarketplaceStorage {
   }
 }
 
-export async function withOperationLock<T>(storage: NodeMarketplaceStorage, roots: readonly ("workspace" | "global")[], action: () => Promise<T>): Promise<T> {
+export async function withOperationLock<T>(storage: NodeMarketplaceStorage, roots: readonly InstallScope[], action: () => Promise<T>): Promise<T> {
   const locks: Array<{ close(): Promise<void>; path: string }> = [];
   try {
-    for (const scope of [...new Set(roots)].sort()) {
+    for (const scope of [...new Set(roots.map((root) => root === "global" ? "global" : "workspace") as readonly ("workspace" | "global")[])].sort()) {
       const lockDir = resolve(storage.root(scope), ".ai_marketplace");
       await storage.assertSafe(scope, ".ai_marketplace/.operation.lock", true);
       await mkdir(lockDir, { recursive: true });
