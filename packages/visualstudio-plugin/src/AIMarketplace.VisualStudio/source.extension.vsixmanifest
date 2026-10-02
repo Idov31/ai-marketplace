@@ -4,7 +4,7 @@
     <Identity Id="AIMarketplace.VisualStudio.1f90619f-0241-45fc-9752-6223816b05e8" Version="1.1.0" Language="en-US" Publisher="AI Marketplace" />
     <DisplayName>AI Marketplace</DisplayName>
     <Description xml:space="preserve">Browse and manage AI Marketplace packages for Codex, Cursor, GitHub Copilot, and Claude.</Description>
-    <MoreInfo>https://github.com/iveltzman/ai-marketplace</MoreInfo>
+    <MoreInfo>https://github.com/Idov31/ai-marketplace</MoreInfo>
     <License>LICENSE.txt</License>
     <Icon>Assets\ai-marketplace.png</Icon>
     <Tags>AI,Codex,Cursor,Copilot,Claude,packages</Tags>
