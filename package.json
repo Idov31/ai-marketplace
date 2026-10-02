@@ -37,16 +37,16 @@
     "test:visualstudio-native": "npm run test -w @ai-marketplace/visualstudio-plugin"
   },
   "devDependencies": {
-    "@anthropic-ai/claude-code": "2.1.274",
-    "@types/node": "^26.6.1",
+    "@anthropic-ai/claude-code": "2.1.281",
+    "@types/node": "^26.6.2",
     "@types/vscode": "1.138.0",
-    "@typescript-eslint/eslint-plugin": "^8.70.0",
-    "@typescript-eslint/parser": "^8.69.0",
+    "@typescript-eslint/eslint-plugin": "^8.70.1",
+    "@typescript-eslint/parser": "^8.70.1",
     "@vscode/test-cli": "^0.0.15",
     "@vscode/vsce": "^4.0.0",
     "ajv": "^8.20.0",
     "esbuild": "^0.28.1",
-    "eslint": "^10.10.0",
+    "eslint": "^10.11.0",
     "ovsx": "1.2.0",
     "typescript": "^6.0.3"
   },
