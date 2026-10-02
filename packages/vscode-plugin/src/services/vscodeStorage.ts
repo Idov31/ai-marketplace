@@ -1,18 +1,23 @@
 import * as os from "os";
+import * as path from "path";
 import { randomUUID } from "node:crypto";
 import { lstat, open, readFile, rm } from "node:fs/promises";
 import * as vscode from "vscode";
-import type { InstallScope, MarketplaceStorage, PackageFile } from "@ai-marketplace/core";
+import { safeJoinRelative, type InstallScope, type MarketplaceStorage, type PackageFile } from "@ai-marketplace/core";
 import { safeJoinWorkspace } from "./pathSafety";
+
+const fileTypes = vscode.FileType ?? { File: 1, Directory: 2, SymbolicLink: 64 };
 
 export class VscodeMarketplaceStorage implements MarketplaceStorage {
   private readonly globalRoot = vscode.Uri.file(os.homedir());
+  private readonly harnessHome = vscode.Uri.file(process.env.DSH_HOME || path.join(os.homedir(), ".dsh"));
 
   public constructor(private readonly workspaceRoot: vscode.Uri) {}
 
   public async readFile(scope: InstallScope, relativePath: string): Promise<Uint8Array | undefined> {
     try {
-      return await vscode.workspace.fs.readFile(safeJoinWorkspace(this.root(scope), relativePath));
+      await this.assertNoSymlinkPath(scope, relativePath);
+      return await vscode.workspace.fs.readFile(this.target(scope, relativePath));
     } catch (error) {
       if (isFileNotFound(error)) return undefined;
       throw error;
@@ -20,19 +25,24 @@ export class VscodeMarketplaceStorage implements MarketplaceStorage {
   }
 
   public async exists(scope: InstallScope, relativePath: string): Promise<boolean> {
-    return uriExists(safeJoinWorkspace(this.root(scope), relativePath));
+    await this.assertNoSymlinkPath(scope, relativePath);
+    return uriExists(this.target(scope, relativePath));
   }
 
   public async writeFile(scope: InstallScope, relativePath: string, content: Uint8Array): Promise<void> {
-    const target = safeJoinWorkspace(this.root(scope), relativePath);
+    await this.assertNoSymlinkPath(scope, relativePath);
+    const target = this.target(scope, relativePath);
     await vscode.workspace.fs.createDirectory(vscode.Uri.joinPath(target, ".."));
+    await this.assertNoSymlinkPath(scope, relativePath);
     await vscode.workspace.fs.writeFile(target, content);
   }
 
   public async writeFileAtomic(scope: InstallScope, relativePath: string, content: Uint8Array): Promise<void> {
-    const target = safeJoinWorkspace(this.root(scope), relativePath);
+    await this.assertNoSymlinkPath(scope, relativePath);
+    const target = this.target(scope, relativePath);
     const temporary = vscode.Uri.joinPath(target, "..", `.ai-marketplace-${randomUUID()}.tmp`);
     await vscode.workspace.fs.createDirectory(vscode.Uri.joinPath(target, ".."));
+    await this.assertNoSymlinkPath(scope, relativePath);
     try {
       await vscode.workspace.fs.writeFile(temporary, content);
       await vscode.workspace.fs.rename(temporary, target, { overwrite: true });
@@ -42,11 +52,13 @@ export class VscodeMarketplaceStorage implements MarketplaceStorage {
   }
 
   public async replaceDirectory(scope: InstallScope, relativePath: string, files: readonly PackageFile[]): Promise<void> {
-    const target = safeJoinWorkspace(this.root(scope), relativePath);
+    await this.assertNoSymlinkPath(scope, relativePath);
+    const target = this.target(scope, relativePath);
     const parent = vscode.Uri.joinPath(target, "..");
     const temporary = vscode.Uri.joinPath(parent, `.ai-marketplace-${randomUUID()}.tmp`);
     const backup = vscode.Uri.joinPath(parent, `.ai-marketplace-${randomUUID()}.backup`);
     await vscode.workspace.fs.createDirectory(temporary);
+    await this.assertNoSymlinkPath(scope, relativePath);
     let movedOld = false;
     try {
       for (const file of files) {
@@ -72,15 +84,24 @@ export class VscodeMarketplaceStorage implements MarketplaceStorage {
   }
 
   public async move(scope: InstallScope, fromRelativePath: string, toRelativePath: string): Promise<void> {
-    const to = safeJoinWorkspace(this.root(scope), toRelativePath);
-    await this.remove(scope, toRelativePath);
+    await this.assertNoSymlinkPath(scope, fromRelativePath);
+    await this.assertNoSymlinkPath(scope, toRelativePath);
+    const to = this.target(scope, toRelativePath);
+    if (await uriExists(to)) throw new Error(`Move destination '${toRelativePath}' already exists.`);
     await vscode.workspace.fs.createDirectory(vscode.Uri.joinPath(to, ".."));
-    await vscode.workspace.fs.rename(safeJoinWorkspace(this.root(scope), fromRelativePath), to, { overwrite: false });
+    const from = this.target(scope, fromRelativePath);
+    if (from.scheme === "file" && to.scheme === "file" && path.parse(from.fsPath).root !== path.parse(to.fsPath).root) {
+      await vscode.workspace.fs.copy(from, to, { overwrite: false });
+      await vscode.workspace.fs.delete(from, { recursive: true, useTrash: false });
+    } else {
+      await vscode.workspace.fs.rename(from, to, { overwrite: false });
+    }
   }
 
   public async remove(scope: InstallScope, relativePath: string): Promise<void> {
     try {
-      await vscode.workspace.fs.delete(safeJoinWorkspace(this.root(scope), relativePath), { recursive: true, useTrash: false });
+      await this.assertNoSymlinkPath(scope, relativePath);
+      await vscode.workspace.fs.delete(this.target(scope, relativePath), { recursive: true, useTrash: false });
     } catch (error) {
       if (!isFileNotFound(error)) throw error;
     }
@@ -117,6 +138,47 @@ export class VscodeMarketplaceStorage implements MarketplaceStorage {
 
   private root(scope: InstallScope): vscode.Uri {
     return scope === "global" ? this.globalRoot : this.workspaceRoot;
+  }
+
+  public async listFiles(scope: InstallScope, relativePath: string): Promise<readonly string[]> {
+    await this.assertNoSymlinkPath(scope, relativePath);
+    const root = this.target(scope, relativePath);
+    const result: string[] = [];
+    const walk = async (directory: vscode.Uri, prefix: string): Promise<void> => {
+      for (const [name, type] of await vscode.workspace.fs.readDirectory(directory)) {
+        if ((type & fileTypes.SymbolicLink) !== 0) throw new Error("Marketplace payload contains a symbolic link.");
+        const path = prefix ? safeJoinRelative(prefix, name) : safeJoinRelative(name);
+        if ((type & fileTypes.Directory) !== 0) await walk(vscode.Uri.joinPath(directory, name), path);
+        else if ((type & fileTypes.File) !== 0) result.push(path);
+        else throw new Error("Marketplace payload contains an unsupported filesystem entry.");
+      }
+    };
+    await walk(root, "");
+    return result.sort();
+  }
+
+  private target(scope: InstallScope, relativePath: string): vscode.Uri {
+    if (scope === "global" && relativePath.startsWith(".dsh/")) {
+      return safeJoinWorkspace(this.harnessHome, relativePath.slice(".dsh/".length));
+    }
+    return safeJoinWorkspace(this.root(scope), relativePath);
+  }
+
+  private async assertNoSymlinkPath(scope: InstallScope, relativePath: string): Promise<void> {
+    const harness = scope === "global" && relativePath.startsWith(".dsh/");
+    const root = harness ? this.harnessHome : this.root(scope);
+    const pathToCheck = harness ? relativePath.slice(".dsh/".length) : relativePath;
+    const segments = safeJoinRelative(pathToCheck).split("/");
+    let cursor = root;
+    for (const segment of ["", ...segments]) {
+      if (segment) cursor = vscode.Uri.joinPath(cursor, segment);
+      try {
+        const stat = await vscode.workspace.fs.stat(cursor);
+        if ((stat.type & fileTypes.SymbolicLink) !== 0) throw new Error(`Marketplace path contains a symbolic link: ${cursor.fsPath}`);
+      } catch (error) {
+        if (!isFileNotFound(error)) throw error;
+      }
+    }
   }
 }
 

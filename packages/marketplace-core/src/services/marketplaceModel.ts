@@ -179,7 +179,7 @@ export function toSerializableMarketplaceModel(model: {
 function isRollbackPinned(installed: InstalledPackage): boolean { return installed.autoUpdate === false && installed.revertedAt !== undefined; }
 function cardAction(option: InstallOption, tone: CardAction["tone"]): CardAction { return { ...option, tone }; }
 function installedCardActions(installed: InstalledPackage, pkg: MarketplacePackage | undefined, installOptions: readonly InstallOption[], updateAvailable: boolean, migration?: MigrationCandidate): { readonly status: PackageCardStatus; readonly primaryAction?: CardAction; readonly moreActions: readonly CardAction[] } {
-  const pinned = isRollbackPinned(installed); const isMcp = installed.type === "mcp"; const isCloud = installed.scope === "cloud"; const offloaded = !isCloud && !isMcp && installed.installedPath.startsWith(".offload/");
+  const pinned = isRollbackPinned(installed); const isMcp = installed.type === "mcp" && !installed.harnessBundle; const isCloud = installed.scope === "cloud"; const offloaded = !isCloud && !isMcp && installed.installedPath.startsWith(".offload/");
   const status: PackageCardStatus = migration ? { kind: "migration", label: "Migration available" } : pinned ? { kind: "reverted", label: "Reverted, pinned" } : isMcp ? { kind: "mcp", label: "Installed and configured" } : isCloud ? { kind: "cloud", label: "Cloud" } : offloaded ? { kind: "offloaded", label: "Offloaded" } : updateAvailable ? { kind: "outdated", label: "Update available" } : { kind: "installed", label: "Installed" };
   const more = installOptions.map((option) => cardAction(option, "secondary"));
   if (migration && updateAvailable) more.unshift({ action: "migrate", label: "Migrate", tone: "secondary", platform: installed.platform, scope: installed.scope });
@@ -222,7 +222,7 @@ export function installOptionsForPackage(
   const orderedPlatforms = orderPlatforms(pkg.manifest.platforms, defaultPlatform);
   const delivery = pkg.manifest.delivery;
   const workspacePlatform = delivery.includes("workspace")
-    ? orderedPlatforms.find((platform) => !isInstalled(installed, platform, "workspace"))
+    ? orderedPlatforms.find((platform) => supportsPlatformScope(pkg, platform, "workspace") && !isInstalled(installed, platform, "workspace"))
     : undefined;
   if (workspacePlatform) {
     options.push(installed.some((item) => item.scope === "workspace")
@@ -240,7 +240,7 @@ export function installOptionsForPackage(
       });
   }
   const globalPlatform = delivery.includes("global")
-    ? orderedPlatforms.find((platform) => !isInstalled(installed, platform, "global"))
+    ? orderedPlatforms.find((platform) => supportsPlatformScope(pkg, platform, "global") && !isInstalled(installed, platform, "global"))
     : undefined;
   if (globalPlatform) {
     options.push(installed.some((item) => item.scope === "global")
@@ -258,7 +258,7 @@ export function installOptionsForPackage(
       });
   }
   const cloudPlatform = delivery.includes("cloud")
-    ? orderedPlatforms.find((platform) => !isInstalled(installed, platform, "cloud"))
+    ? orderedPlatforms.find((platform) => supportsPlatformScope(pkg, platform, "cloud") && !isInstalled(installed, platform, "cloud"))
     : undefined;
   if (cloudPlatform) {
     options.push({
@@ -280,7 +280,14 @@ export function eligibleInstallPlatforms(
   const matchingInstalled = installed.filter((item) => installedIdentity(item) === identity);
   return platforms
     .filter((platform) => pkg.manifest.platforms.includes(platform))
+    .filter((platform) => supportsPlatformScope(pkg, platform, scope))
     .filter((platform) => !matchingInstalled.some((item) => item.platform === platform && item.scope === scope));
+}
+
+export function supportsPlatformScope(pkg: MarketplacePackage, platform: Platform, scope: InstallScope): boolean {
+  if (!pkg.manifest.platforms.includes(platform) || !pkg.manifest.delivery.includes(scope)) return false;
+  if (platform !== "deepseek-harness") return true;
+  return scope === "global" || (scope === "workspace" && (pkg.manifest.type === "skill" || pkg.manifest.type === "rule"));
 }
 
 export function repositoryFilterKey(item: {
@@ -339,5 +346,6 @@ export function platformLabel(platform: Platform): string {
     case "cursor": return "Cursor";
     case "github-copilot": return "GitHub Copilot";
     case "claude": return "Claude";
+    case "deepseek-harness": return "DeepSeek Harness";
   }
 }

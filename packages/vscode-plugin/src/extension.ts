@@ -11,7 +11,7 @@ import {
 import { InstalledStateStore } from "./services/installedState";
 import { getWorkspaceRoot } from "./services/pathSafety";
 import { compareVersions, isUpdateAvailable } from "./services/versioning";
-import { eligibleInstallPlatforms, installOptionsForPackage, installedIdentity, mcpInstallPlatformCandidates, packageIdentity } from "./services/marketplaceModel";
+import { eligibleInstallPlatforms, installOptionsForPackage, installedIdentity, mcpInstallPlatformCandidates, packageIdentity, supportsPlatformScope } from "./services/marketplaceModel";
 import { availableBulkInstallScopes, availableBulkUninstallScopes, matchingUninstallTargets, planBulkInstall, planBulkUninstall, type BulkPackageSelection } from "./services/bulkPlanning";
 import { mcpConfigRelativePath } from "./services/mcpConfig";
 import { defaultPackageInstallPlans } from "./services/defaultPackages";
@@ -657,6 +657,7 @@ async function pickInstallPlatform(
   }
   const items = platforms
     .filter((platform) => pkg.manifest.platforms.includes(platform))
+    .filter((platform) => supportsPlatformScope(pkg, platform, scope))
     .filter((platform) => !installed.some((item) => item.platform === platform && item.scope === scope))
     .map((platform) => ({
       label: platformLabel(platform),
@@ -681,7 +682,9 @@ async function pickMcpInstallPlatform(
   const picked = await vscode.window.showQuickPick(
     candidates.map((platform) => ({
       label: platformLabel(platform),
-      description: path.join(os.homedir(), ...mcpConfigRelativePath(platform).split("/")),
+      description: platform === "deepseek-harness"
+        ? `Harness profile: ${readMarketplaceConfig().deepseekHarnessProfile ?? "web"}`
+        : path.join(os.homedir(), ...mcpConfigRelativePath(platform).split("/")),
       platform
     })),
     { title: "Configure MCP target", placeHolder: "Choose which user-level MCP config to update" }
@@ -800,6 +803,7 @@ async function buildMarketplaceModel(): Promise<{
   readonly knownGroups: readonly string[];
   readonly defaultBranch: string;
   readonly defaultPlatform: Platform;
+  readonly deepseekHarnessProfile: string;
   readonly extensionVersion: string;
   readonly repositories: readonly EditableRepositorySetting[];
 }> {
@@ -816,6 +820,7 @@ async function buildMarketplaceModel(): Promise<{
     knownGroups: collectPackageGroups(catalogCache, installed),
     defaultBranch: defaults.branch,
     defaultPlatform: defaults.platform,
+    deepseekHarnessProfile: defaults.deepseekHarnessProfile,
     extensionVersion,
     repositories: config ? readEditableRepositorySettings() : []
   };
@@ -853,6 +858,8 @@ function platformLabel(platform: Platform): string {
       return "GitHub Copilot";
     case "claude":
       return "Claude";
+    case "deepseek-harness":
+      return "DeepSeek Harness";
   }
 }
 

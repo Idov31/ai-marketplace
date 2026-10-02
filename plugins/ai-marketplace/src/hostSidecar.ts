@@ -1,9 +1,6 @@
 import { createHash } from "node:crypto";
 import { isAbsolute, resolve } from "node:path";
-import {
-  MarketplaceService,
-  type Platform
-} from "@ai-marketplace/core";
+import { MarketplaceService } from "@ai-marketplace/core";
 import {
   HostProtocolConnection,
   NodeMarketplaceStorage,
@@ -188,7 +185,7 @@ async function readHostConfiguration(connection: HostProtocolConnection, policy:
   return raw;
 }
 
-function hostPolicy(platform: Platform): MarketplaceCliHostPolicy {
+function hostPolicy(platform: HostInitializeRequest["platform"]): MarketplaceCliHostPolicy {
   return {
     platform,
     displayName: "Visual Studio",
@@ -200,7 +197,7 @@ function hostPolicy(platform: Platform): MarketplaceCliHostPolicy {
   };
 }
 
-function mcpConfigPath(platform: Platform): string {
+function mcpConfigPath(platform: HostInitializeRequest["platform"]): string {
   switch (platform) {
     case "codex": return ".codex/config.toml";
     case "cursor": return ".cursor/mcp.json";

@@ -28,6 +28,7 @@ class FakeFileSystemError extends Error {
 class FakeFileSystem {
   public readonly files = new Map<string, Uint8Array>();
   public readonly directories = new Set<string>();
+  public readonly symlinks = new Set<string>();
   public stateWriteCount = 0;
 
   public async readFile(uri: FakeUri): Promise<Uint8Array> {
@@ -51,6 +52,7 @@ class FakeFileSystem {
 
   public async stat(uri: FakeUri): Promise<{ type: number }> {
     const key = normalize(uri.fsPath);
+    if (this.symlinks.has(key)) return { type: 64 };
     if (this.files.has(key) || [...this.files.keys()].some((item) => item.startsWith(`${key}\\`)) || this.directories.has(key)) return { type: 1 };
     throw new FakeFileSystemError("FileNotFound");
   }
@@ -267,6 +269,17 @@ describe("PackageInstaller MCP installs", () => {
     assert.equal(state.packages[0].revertedAt, undefined);
     assert.equal(state.packages[0].revertedFromVersion, undefined);
     assert.deepEqual(runner.requests.map((request) => request.action), ["install", "revert", "update"]);
+  });
+});
+
+describe("DeepSeek Harness workspace path safety", () => {
+  it("refuses a skill install through a symlinked .dsh directory", async () => {
+    const { installer, fs } = await createInstaller(async () => [{ relativePath: "SKILL.md", content: Buffer.from("# Safe\n") }]);
+    const base = packageForType("skill", "safe-skill", "SKILL.md");
+    const pkg = { ...base, manifest: { ...base.manifest, platforms: ["deepseek-harness"] as const } };
+    fs.symlinks.add(workspacePath(".dsh"));
+    await assert.rejects(() => installer.install(pkg, "deepseek-harness", "workspace"), /symbolic link/);
+    assert.equal(fs.workspaceText(".dsh/skills/safe-skill/SKILL.md"), undefined);
   });
 });
 

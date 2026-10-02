@@ -117,7 +117,8 @@
               "codex",
               "cursor",
               "github-copilot",
-              "claude"
+              "claude",
+              "deepseek-harness"
             ]
           },
           "x-ai-marketplace-introduced-in": 1,

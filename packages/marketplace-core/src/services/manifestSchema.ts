@@ -115,7 +115,7 @@ export function createMarketplaceManifestJsonSchema(): Readonly<Record<string, u
         description: string("package.description"), group: string("package.group"), entrypoint: string("package.entrypoint")
       } }),
       targets: property("targets", { type: "object", required: ["platforms", "delivery"], additionalProperties: true, properties: {
-        platforms: property("targets.platforms", { type: "array", minItems: 1, uniqueItems: true, items: { enum: ["codex", "cursor", "github-copilot", "claude"] } }),
+        platforms: property("targets.platforms", { type: "array", minItems: 1, uniqueItems: true, items: { enum: ["codex", "cursor", "github-copilot", "claude", "deepseek-harness"] } }),
         delivery: property("targets.delivery", { type: "array", minItems: 1, uniqueItems: true, items: { enum: ["workspace", "global", "cloud"] } })
       } }),
       installation: property("installation", { type: "object", additionalProperties: true, properties: { default: property("installation.default", { type: "boolean", default: false }) } }),

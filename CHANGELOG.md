@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.0
+
+- Added DeepSeek Harness package installation and native Marketplace support.
+
 ## 1.0.1
 
 - Added default branch and platform controls to the Configuration tab.

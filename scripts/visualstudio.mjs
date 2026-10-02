@@ -60,6 +60,8 @@ async function visualStudioVersion() {
 }
 
 async function prepareRuntime(version) {
+  if (!process.env.npm_execpath) throw new Error("Run runtime preparation through npm.cmd run package:visualstudio.");
+  run(process.execPath, [process.env.npm_execpath, "run", "build:core"]);
   const runtimeRoot = resolve(projectRoot, "Runtime");
   const sidecarRoot = resolve(projectRoot, "Sidecar");
   const dashboardRoot = resolve(projectRoot, "Dashboard");

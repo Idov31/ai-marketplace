@@ -38,6 +38,14 @@ function reader(stream) {
   };
 }
 
+test("host initialization preserves its supported platforms and rejects Harness", () => {
+  const request = { protocolVersion: 1, runtimeVersion: "1.1.0", host: "visualstudio", hostVersion: "17", extensionVersion: "1.1.0", userRoot: "C:\\Users\\test", capabilities: ["credentials"] };
+  for (const platform of ["codex", "cursor", "github-copilot", "claude"]) {
+    assert.equal(validateInitializeRequest({ ...request, platform }).platform, platform);
+  }
+  assert.throws(() => validateInitializeRequest({ ...request, platform: "deepseek-harness" }), /invalid or incompatible/);
+});
+
 test("protocol requires initialize and returns a versioned response", async () => {
   const input = new PassThrough(); const output = new PassThrough(); const next = reader(output);
   const connection = new HostProtocolConnection(input, output, async (method, params) => method === "initialize" ? validateInitializeRequest(params) : { ok: true });
