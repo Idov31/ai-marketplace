@@ -32,6 +32,7 @@ export interface UserAutomationPreferences {
 export interface UserMarketplaceDefaults {
   readonly branch: string;
   readonly platform: Platform;
+  readonly deepseekHarnessProfile: string;
 }
 
 export function readMarketplaceConfig(config = getVscode().workspace.getConfiguration("aiMarketplace")): MarketplaceConfig {
@@ -54,8 +55,17 @@ export function readMarketplaceConfig(config = getVscode().workspace.getConfigur
     repositories,
     platformPathOverrides: config.get<PlatformPathOverrides>("platformPathOverrides") ?? {},
     defaultPlatform: normalizeDefaultPlatform(config.get<string>("defaultPlatform")),
+    deepseekHarnessProfile: normalizeHarnessProfile(config.get<string>("deepseekHarnessProfile")),
     ...automation
   };
+}
+
+export function normalizeHarnessProfile(value: string | undefined): string {
+  const profile = value?.trim() || "web";
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/.test(profile)) {
+    throw new ValidationError("DeepSeek Harness profile must be a simple profile name.");
+  }
+  return profile;
 }
 
 export function readUserAutomationPreferences(config = getVscode().workspace.getConfiguration("aiMarketplace")): UserAutomationPreferences {
@@ -68,7 +78,8 @@ export function readUserAutomationPreferences(config = getVscode().workspace.get
 export function readUserMarketplaceDefaults(config = getVscode().workspace.getConfiguration("aiMarketplace")): UserMarketplaceDefaults {
   return {
     branch: normalizeDefaultBranch(config.get<string>("branch")),
-    platform: normalizeDefaultPlatform(config.get<string>("defaultPlatform"))
+    platform: normalizeDefaultPlatform(config.get<string>("defaultPlatform")),
+    deepseekHarnessProfile: normalizeHarnessProfile(config.get<string>("deepseekHarnessProfile"))
   };
 }
 
@@ -103,6 +114,7 @@ export async function writeUserMarketplaceDefaults(defaults: UserMarketplaceDefa
   const config = getVscode().workspace.getConfiguration("aiMarketplace");
   await config.update("branch", normalizeDefaultBranch(defaults.branch), getVscode().ConfigurationTarget.Global);
   await config.update("defaultPlatform", normalizeDefaultPlatform(defaults.platform), getVscode().ConfigurationTarget.Global);
+  await config.update("deepseekHarnessProfile", normalizeHarnessProfile(defaults.deepseekHarnessProfile), getVscode().ConfigurationTarget.Global);
 }
 
 export function normalizeDefaultBranch(value: string | undefined): string {

@@ -18,6 +18,8 @@ export function mcpConfigRelativePath(platform: Platform): string {
       return ".copilot/mcp-config.json";
     case "claude":
       return ".claude.json";
+    case "deepseek-harness":
+      throw new Error("DeepSeek Harness MCP servers are installed through profile bundles.");
   }
 }
 

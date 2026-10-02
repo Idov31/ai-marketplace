@@ -11,13 +11,14 @@ import {
 } from "@ai-marketplace/core";
 import { VscodeMarketplaceStorage } from "./vscodeStorage";
 import { VscodeMcpScriptRunner } from "./mcpScriptRunner";
+import { VscodeHarnessProfileManager } from "./harnessProfileManager";
 
 export class PackageInstaller extends CorePackageInstaller {
   private lockDepth = 0;
 
   public constructor(workspaceRoot: vscode.Uri, config: MarketplaceConfig, fetchFiles: (pkg: MarketplacePackage) => Promise<readonly PackageFile[]>, mcpScriptRunner?: McpScriptRunner) {
     const storage = new VscodeMarketplaceStorage(workspaceRoot);
-    super(storage, config, fetchFiles, mcpScriptRunner ?? new VscodeMcpScriptRunner(() => undefined));
+    super(storage, config, fetchFiles, mcpScriptRunner ?? new VscodeMcpScriptRunner(() => undefined), new VscodeHarnessProfileManager(storage));
     this.vscodeStorage = storage;
   }
 

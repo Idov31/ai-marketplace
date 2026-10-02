@@ -63,3 +63,33 @@ jobs:
         run: npm run test -w @ai-marketplace/codex-plugin
       - name: Test Claude plugin
         run: npm run test -w @ai-marketplace/claude-plugin
+
+  visualstudio:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Use Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Download pinned runtimes
+        shell: pwsh
+        run: ./scripts/download-visualstudio-runtimes.ps1
+      - name: Test native host
+        run: npm run test:visualstudio-native
+      - name: Build installable VSIX
+        run: npm run package:visualstudio
+      - name: Write artifact checksum
+        shell: pwsh
+        run: Get-FileHash dist/*.vsix -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLowerInvariant())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content dist/SHA256SUMS
+      - name: Upload verified VSIX
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ai-marketplace-visualstudio
+          path: |
+            dist/*.vsix
+            dist/SHA256SUMS

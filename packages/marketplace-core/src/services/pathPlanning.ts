@@ -40,6 +40,14 @@ const defaultInstallRoots: Readonly<Record<Platform, Readonly<Record<PackageType
     agent: ".claude/agents",
     hook: ".claude/hooks",
     rule: ".claude/rules"
+  },
+  "deepseek-harness": {
+    skill: ".dsh/skills",
+    command: ".ai_marketplace/deepseek-harness/bundles",
+    mcp: ".ai_marketplace/deepseek-harness/bundles",
+    agent: ".ai_marketplace/deepseek-harness/bundles",
+    hook: ".ai_marketplace/deepseek-harness/bundles",
+    rule: ".dsh/rules"
   }
 };
 

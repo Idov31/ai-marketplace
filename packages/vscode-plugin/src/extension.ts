@@ -11,8 +11,8 @@ import {
 import { InstalledStateStore } from "./services/installedState";
 import { getWorkspaceRoot } from "./services/pathSafety";
 import { compareVersions, isUpdateAvailable } from "./services/versioning";
-import { eligibleInstallPlatforms, installOptionsForPackage, installedIdentity, mcpInstallPlatformCandidates, packageIdentity } from "./services/marketplaceModel";
-import { availableBulkInstallScopes, availableBulkUninstallScopes, matchingUninstallTargets, planBulkInstall, planBulkUninstall, type BulkPackageSelection } from "./services/bulkPlanning";
+import { eligibleInstallPlatforms, installOptionsForPackage, installedIdentity, mcpInstallPlatformCandidates, packageIdentity, supportsPlatformScope } from "./services/marketplaceModel";
+import { availableBulkUninstallScopes, matchingUninstallTargets, planBulkInstall, planBulkUninstall, type BulkPackageSelection } from "./services/bulkPlanning";
 import { mcpConfigRelativePath } from "./services/mcpConfig";
 import { defaultPackageInstallPlans } from "./services/defaultPackages";
 import { autoInstallGroupPlans, collectPackageGroups, planGroupInstall, type GroupInstallScope } from "./services/groupInstall";
@@ -271,7 +271,7 @@ async function runBulkActions(context: vscode.ExtensionContext, actions: readonl
     await reportError("AI Marketplace bulk action failed", new Error("A bulk request must contain one action type."));
     return;
   }
-  if (action === "install") {
+  if (action === "install" || action === "installGlobal" || action === "installDifferentPlatform") {
     await runBulkInstall(context, actions);
     return;
   }
@@ -281,6 +281,10 @@ async function runBulkActions(context: vscode.ExtensionContext, actions: readonl
   }
   if (action === "migrate") {
     await runBulkMigrate(context, actions);
+    return;
+  }
+  if (action === "revert") {
+    await runBulkRevert(context, actions);
     return;
   }
   for (const item of actions) {
@@ -337,21 +341,32 @@ async function runBulkInstall(context: vscode.ExtensionContext, actions: readonl
         missing.push(toBulkSelection(item));
         return [];
       }
+      const matchingInstalled = installed.filter((candidate) => installedIdentity(candidate) === packageIdentity(pkg));
+      const scope = item.scope ?? (item.action === "installGlobal" ? "global" : "workspace");
+      const alternate = item.action === "installDifferentPlatform";
+      const basePlatform = matchingInstalled.find((candidate) => candidate.scope === scope)?.platform ?? config.defaultPlatform;
+      const options = alternate
+        ? platforms.filter((platform) => supportsPlatformScope(pkg, platform, scope)
+          && platform !== basePlatform
+          && !matchingInstalled.some((candidate) => candidate.platform === platform && candidate.scope === scope))
+          .map((platform) => ({ action: "installDifferentPlatform" as const, scope, platform, label: `Install for ${platform}` }))
+        : installOptionsForPackage(pkg, matchingInstalled, config.defaultPlatform).filter((option) => option.scope === scope);
       return [{
         selection: toBulkSelection(item),
         pkg,
-        options: installOptionsForPackage(pkg, installed.filter((candidate) => installedIdentity(candidate) === packageIdentity(pkg)), config.defaultPlatform)
+        options
       }];
     });
-    const scopes = availableBulkInstallScopes(candidates);
-    const scope = await pickScope("Install selected packages in", "Choose one destination for the selected packages", scopes);
-    if (!scope) {
+    const requestedScope = actions[0].scope ?? (actions[0].action === "installGlobal" ? "global" : "workspace");
+    const scope = requestedScope === "global" ? "global" : "workspace";
+    const platformOptions = [...new Set(candidates.flatMap((candidate) => candidate.options.map((option) => option.platform)))];
+    const platform = actions[0].action === "installDifferentPlatform"
+      ? await pickInstallPlatformForBulk(platformOptions, scope)
+      : undefined;
+    if (actions[0].action === "installDifferentPlatform" && !platform) {
       return;
     }
-    if (scope === "cloud") {
-      throw new Error("Bulk package installation supports only workspace and user-directory targets.");
-    }
-    const plan = planBulkInstall(candidates, scope);
+    const plan = planBulkInstall(candidates, scope, platform);
     const scripted = plan.eligible.flatMap((item) => {
       const candidate = candidates.find((entry) => entry.selection === item.selection);
       return candidate?.pkg.manifest.type === "mcp" ? [candidate.pkg] : [];
@@ -382,6 +397,63 @@ async function runBulkInstall(context: vscode.ExtensionContext, actions: readonl
     showBulkSummary("Installed", succeeded, missing.length + plan.skipped.length, failed, scope);
   } catch (error) {
     await reportError("AI Marketplace bulk install failed", error);
+    await updateWebview();
+  }
+}
+
+async function pickInstallPlatformForBulk(candidates: readonly Platform[], scope: InstallScope): Promise<Platform | undefined> {
+  if (candidates.length === 0) return undefined;
+  const picked = await vscode.window.showQuickPick(candidates.map((platform) => ({ label: platformLabel(platform), platform })), {
+    title: "Install for different platform",
+    placeHolder: `Choose one platform for eligible packages ${scopeMessage(scope)}`
+  });
+  return picked?.platform;
+}
+
+async function runBulkRevert(context: vscode.ExtensionContext, actions: readonly BulkPackageAction[]): Promise<void> {
+  try {
+    const config = readMarketplaceConfig();
+    const client = createRepositoryClient(context, config);
+    const installer = new PackageInstaller(getWorkspaceRoot(), config, (pkg) => client.fetchPackageFiles(pkg));
+    const installed = await installer.listInstalled();
+    const skipped: BulkPackageAction[] = [];
+    const candidates: { pkg: MarketplacePackage; target: InstalledPackage; snapshot: MarketplacePackage }[] = [];
+    for (const action of actions) {
+      const pkg = findCatalogPackage(action.packageId, action);
+      const target = installed.find((item) => item.id === action.packageId
+        && item.sourceId === action.sourceId && item.qualifiedName === action.qualifiedName
+        && item.platform === action.platform && item.scope === action.scope);
+      if (!pkg?.manifest.previousVersion || !target || target.autoUpdate === false || target.revertedAt !== undefined || target.version !== pkg.manifest.version) {
+        skipped.push(action);
+        continue;
+      }
+      try {
+        const snapshot = await client.fetchPackageAtRevision(pkg, pkg.manifest.previousVersion);
+        if (compareVersions(snapshot.manifest.version, pkg.manifest.version) >= 0) { skipped.push(action); continue; }
+        candidates.push({ pkg, target, snapshot });
+      } catch (error) {
+        skipped.push(action);
+        log(`Bulk revert could not load ${pkg.manifest.id}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+    if (candidates.length === 0) {
+      showBulkSummary("Reverted", 0, skipped.length, 0, actions[0]?.scope ?? "workspace");
+      return;
+    }
+    const scripted = candidates.filter((item) => item.pkg.manifest.type === "mcp").map((item) => packageScriptLabel(item.pkg));
+    if (scripted.length && !await authorizeMcpScripts(scripted, "install.py")) return;
+    const answer = await vscode.window.showWarningMessage(`Revert ${candidates.length} selected installation(s) to their previous versions?`, { modal: true }, "Revert");
+    if (answer !== "Revert") return;
+    let succeeded = 0;
+    let failed = 0;
+    for (const item of candidates) {
+      try { await installer.revertInstalled(item.snapshot, item.target, item.pkg.manifest.previousVersion!); succeeded += 1; }
+      catch (error) { failed += 1; log(`Bulk revert failed for ${item.pkg.manifest.id}: ${error instanceof Error ? error.message : String(error)}`); }
+    }
+    await updateWebview();
+    showBulkSummary("Reverted", succeeded, skipped.length, failed, candidates[0].target.scope);
+  } catch (error) {
+    await reportError("AI Marketplace bulk revert failed", error);
     await updateWebview();
   }
 }
@@ -657,6 +729,7 @@ async function pickInstallPlatform(
   }
   const items = platforms
     .filter((platform) => pkg.manifest.platforms.includes(platform))
+    .filter((platform) => supportsPlatformScope(pkg, platform, scope))
     .filter((platform) => !installed.some((item) => item.platform === platform && item.scope === scope))
     .map((platform) => ({
       label: platformLabel(platform),
@@ -681,7 +754,9 @@ async function pickMcpInstallPlatform(
   const picked = await vscode.window.showQuickPick(
     candidates.map((platform) => ({
       label: platformLabel(platform),
-      description: path.join(os.homedir(), ...mcpConfigRelativePath(platform).split("/")),
+      description: platform === "deepseek-harness"
+        ? `Harness profile: ${readMarketplaceConfig().deepseekHarnessProfile ?? "web"}`
+        : path.join(os.homedir(), ...mcpConfigRelativePath(platform).split("/")),
       platform
     })),
     { title: "Configure MCP target", placeHolder: "Choose which user-level MCP config to update" }
@@ -800,6 +875,7 @@ async function buildMarketplaceModel(): Promise<{
   readonly knownGroups: readonly string[];
   readonly defaultBranch: string;
   readonly defaultPlatform: Platform;
+  readonly deepseekHarnessProfile: string;
   readonly extensionVersion: string;
   readonly repositories: readonly EditableRepositorySetting[];
 }> {
@@ -816,6 +892,7 @@ async function buildMarketplaceModel(): Promise<{
     knownGroups: collectPackageGroups(catalogCache, installed),
     defaultBranch: defaults.branch,
     defaultPlatform: defaults.platform,
+    deepseekHarnessProfile: defaults.deepseekHarnessProfile,
     extensionVersion,
     repositories: config ? readEditableRepositorySettings() : []
   };
@@ -853,6 +930,8 @@ function platformLabel(platform: Platform): string {
       return "GitHub Copilot";
     case "claude":
       return "Claude";
+    case "deepseek-harness":
+      return "DeepSeek Harness";
   }
 }
 

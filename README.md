@@ -12,6 +12,7 @@ Packages can target these AI vendors:
 | Cursor | `.cursor/` and `~/.cursor/` |
 | GitHub Copilot | `.github/` and `~/.copilot/` |
 | Claude Code | `.claude/` and `~/.claude.json` |
+| DeepSeek Harness | `.dsh/` skills and rules, plus selected profile bundles |
 
 ## Supported package types
 
@@ -28,12 +29,26 @@ Packages can target these AI vendors:
 
 | Platform | Purpose |
 | --- | --- |
-| VS Code extension | Full marketplace interface for Codex, Cursor, GitHub Copilot, and Claude Code packages. |
+| VS Code extension | Full marketplace interface for Codex, Cursor, GitHub Copilot, Claude Code, and DeepSeek Harness packages. |
 | Cursor | Runs the VS Code extension. |
+| Visual Studio 2022+ | Native VSIX with a WebView2 marketplace tool window and bundled x64/Arm64 runtime. |
 | Codex plugin | Dashboard and guided CLI for Codex packages. |
 | Claude Code plugin | Guided CLI skill for Claude Code packages. |
+| DeepSeek Harness bundle | Native right Sidebar page and authenticated Host API for Harness packages. |
 
 The Codex and Claude plugins each manage only their own vendor's packages. VS Code and Cursor use the same extension.
+
+### DeepSeek Harness packages
+
+The integration targets DeepSeek Harness `0.1.5-rc.3`. Select a named profile in `aiMarketplace.deepseekHarnessProfile` in VS Code. The extension finds a matching local `npx` installation automatically; `aiMarketplace.deepseekHarnessCliPath` can point to `dsh` or its `lib/bin.js` when installed elsewhere. Set `DSH_HOME` before launching VS Code if Harness uses a custom home.
+
+Harness skills use `SKILL.md` under workspace `.dsh/skills/<id>/` or `$DSH_HOME/skills/<id>/`. Rules use `RULE.md` under `.dsh/rules/<id>/` and a Marketplace-owned profile adapter that reads only active rules assigned to that profile. It leaves `AGENTS.md` untouched. Commands, MCP, agents, and hooks use global delivery through `dsh plugin --profile <name> add`; each package must ship a prebuilt Harness `package.json`, `cordis.patch.yml`, and its referenced modules. The installer does not translate another vendor's format. Harness cloud delivery is unsupported.
+
+For a native Harness page, build with `npm.cmd run build:harness`, then add [the Harness bundle](plugins/ai-marketplace-harness/README.md) to the selected profile. The Marketplace page appears in the Web UI right Sidebar guide. Repository sources for that page are configured in `~/.ai_marketplace/deepseek-harness.json`; credentials come from the same provider environment variables as the Codex and Claude CLIs.
+
+### Visual Studio IDE
+
+The Visual Studio extension supports Community, Professional, and Enterprise editions of Visual Studio on Windows x64 and Arm64. It uses the open solution or Open Folder directory for workspace operations; with no workspace, global operations remain available. Repository credentials are stored in Windows Credential Manager and are passed to the isolated sidecar only through authenticated host callbacks.
 
 ## Repository layout
 
@@ -42,9 +57,11 @@ packages/
   marketplace-core/       Shared catalog, validation, planning, and lifecycle engine
   marketplace-node-cli/   Shared CLI, storage, locking, and host adapters
   vscode-plugin/          VS Code and Cursor extension
+  visualstudio-plugin/    Visual Studio 2022+ VSIX
 plugins/
   ai-marketplace/         Codex plugin
   ai-marketplace-claude/  Claude Code plugin
+  ai-marketplace-harness/ DeepSeek Harness bundle
 schemas/                  Generated package-manifest JSON Schema
 ```
 
@@ -77,6 +94,18 @@ After the first public release:
 - Cursor: install the same extension from [Open VSX](https://open-vsx.org/extension/Idov31/ai-marketplace) through Cursor's Extensions view.
 
 VS Code and Cursor use their native extension update mechanisms. For local development, build `dist/ai-marketplace-<version>.vsix` with `npm.cmd run package:vscode` and use **Extensions: Install from VSIX...**.
+
+### Install in Visual Studio
+
+On Windows, run `powershell -File scripts/download-visualstudio-runtimes.ps1` once, then `npm.cmd run package:visualstudio`. Close Visual Studio and open `dist/ai-marketplace-visualstudio-<version>.vsix` to install it. Open the tab using **Tools > Open AI Marketplace**. Settings are available through **Tools > AI Marketplace Settings...** and **Tools > Options > AI Marketplace**.
+
+Visual Studio starts with no repository configured and does not use a hardcoded fallback or install repository-designated default packages. Open the marketplace's **Auto Updates** tab and find **Marketplace sources**. Enter a source ID, repository URL, and branch, then select **Add a repository** and confirm the plan. Multiple GitHub, Azure DevOps, and GitLab sources are supported. Repository configuration is saved in Visual Studio settings; credentials remain in Windows Credential Manager.
+
+Use **Set repository credential...** in the tool window's native toolbar (or **Tools > Set Repository Credential...**) to save a shared provider credential or a credential for a configured repository. Supported methods match VS Code: GitHub PAT/access token, Azure DevOps PAT or Microsoft Entra/OAuth access token, and GitLab access token or OAuth access token. Token input is masked, and the dialog can remove saved credentials. Saving a credential from the toolbar refreshes the catalog and reconnects the page. Repository-specific credentials are used after shared authentication is rejected.
+
+The tool window recreates its browser after docking, changing native parents, or reopening. **Reload marketplace** remains available outside the browser if the page or browser process fails. Reconnecting resets page-local selections and unconfirmed review dialogs; saved repository settings and installed packages are preserved.
+
+The development artifact is unsigned. Publisher signing and public Visual Studio Marketplace publication are intentionally deferred. A WebView2 Runtime is required by Visual Studio.
 
 ### Install the Codex plugin
 
@@ -173,6 +202,8 @@ See the generated [manifest schema](schemas/ai_marketplace.schema.json) for ever
 npm.cmd run package:vscode
 npm.cmd run package:codex
 npm.cmd run package:claude
+npm.cmd run package:visualstudio
+npm.cmd run package:harness
 npm.cmd run package
 ```
 

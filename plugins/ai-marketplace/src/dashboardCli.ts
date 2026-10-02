@@ -130,7 +130,7 @@ async function createDashboardServerOptions(context: DashboardCliContext): Promi
   return { workspace: context.workspace, storage: context.storage, application, asset: dashboardAssetLoader(process.argv[1]) };
 }
 
-function mutateDashboardConfig(
+export function mutateDashboardConfig(
   raw: CodexConfigFile,
   request: Extract<DashboardPlanRequest, { readonly action: "set-preferences" | "source-add" | "source-update" | "source-remove" }>
 ): CodexConfigFile {
@@ -152,11 +152,11 @@ function mutateDashboardConfig(
   return { ...raw, repositories };
 }
 
-function configurationIdentity(request: Extract<DashboardPlanRequest, { readonly action: "set-preferences" | "source-add" | "source-update" | "source-remove" }>): string {
+export function configurationIdentity(request: Extract<DashboardPlanRequest, { readonly action: "set-preferences" | "source-add" | "source-update" | "source-remove" }>): string {
   return request.action === "set-preferences" ? "preferences" : `source:${request.action === "source-remove" ? request.sourceId : request.source.id}`;
 }
 
-function configurationSummary(request: Extract<DashboardPlanRequest, { readonly action: "set-preferences" | "source-add" | "source-update" | "source-remove" }>, nextConfig: CodexConfigFile): string {
+export function configurationSummary(request: Extract<DashboardPlanRequest, { readonly action: "set-preferences" | "source-add" | "source-update" | "source-remove" }>, nextConfig: CodexConfigFile): string {
   if (request.action === "set-preferences") return `Set auto update ${nextConfig.autoUpdate ? "on" : "off"} and automatic groups to ${nextConfig.autoInstallGroups?.join(", ") || "none"}.`;
   if (request.action === "source-remove") return `Remove repository source '${request.sourceId}'.`;
   const source = nextConfig.repositories?.find((candidate) => candidate.id === request.source.id) ?? request.source;
@@ -166,7 +166,7 @@ function configurationSummary(request: Extract<DashboardPlanRequest, { readonly 
   return `${request.action === "source-add" ? "Add" : "Update"} repository source '${source.id}': url=${source.url}, provider=${source.provider ?? "inferred"}, label=${source.label ?? source.id}, branch=${source.branch ?? "main"}, enabled=${source.enabled !== false}, allowDefaultPackages=${source.allowDefaultPackages === true}, packageFolders=${folders}.`;
 }
 
-function configurationChanges(
+export function configurationChanges(
   raw: CodexConfigFile,
   nextConfig: CodexConfigFile,
   request: Extract<DashboardPlanRequest, { readonly action: "set-preferences" | "source-add" | "source-update" | "source-remove" }>
@@ -202,7 +202,7 @@ function reviewSource(source: CodexRepository | undefined): Readonly<Record<"id"
   };
 }
 
-function dashboardAssetLoader(entrypoint: string | undefined): (path: string) => Promise<DashboardAsset | undefined> {
+export function dashboardAssetLoader(entrypoint: string | undefined): (path: string) => Promise<DashboardAsset | undefined> {
   const pluginRoot = resolve(dirname(entrypoint ?? process.cwd()), "..");
   const assets: Readonly<Record<string, { readonly relativePath: string; readonly contentType: string }>> = {
     "/index.html": { relativePath: "dashboard/index.html", contentType: "text/html; charset=utf-8" },
@@ -245,6 +245,6 @@ function configRevision(raw: CodexConfigFile): string { return createHash("sha25
 export function isDashboardRefreshWarning(line: string): boolean {
   return /^Unable to refresh source |^Skipping invalid package |manifest type does not match/i.test(line);
 }
-function isCodexConfigFile(value: unknown): value is CodexConfigFile {
+export function isCodexConfigFile(value: unknown): value is CodexConfigFile {
   return typeof value === "object" && value !== null && (value as { schemaVersion?: unknown }).schemaVersion === 1;
 }

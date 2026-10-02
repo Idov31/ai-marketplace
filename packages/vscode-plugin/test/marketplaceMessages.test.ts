@@ -6,7 +6,7 @@ const folders = { skill: "Skills/", command: "Commands/", mcp: "Mcps/", agent: "
 
 describe("marketplace configuration messages", () => {
   it("accepts only typed marketplace defaults", () => {
-    assert.deepEqual(parseMarketplaceDefaults({ branch: "main", platform: "codex" }), { branch: "main", platform: "codex" });
+    assert.deepEqual(parseMarketplaceDefaults({ branch: "main", platform: "codex", deepseekHarnessProfile: "web" }), { branch: "main", platform: "codex", deepseekHarnessProfile: "web" });
     assert.equal(parseMarketplaceDefaults({ branch: "main", platform: "unknown" }), undefined);
     assert.equal(parseMarketplaceDefaults({ branch: 3, platform: "codex" }), undefined);
   });

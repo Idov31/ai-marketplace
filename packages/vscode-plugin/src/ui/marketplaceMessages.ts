@@ -4,13 +4,16 @@ import type { EditableRepositorySetting } from "../services/configuration";
 export interface MarketplaceDefaultsMessage {
   readonly branch: string;
   readonly platform: Platform;
+  readonly deepseekHarnessProfile: string;
 }
 
 export function parseMarketplaceDefaults(value: unknown): MarketplaceDefaultsMessage | undefined {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
   const record = value as Record<string, unknown>;
-  if (typeof record.branch !== "string" || !isPlatform(record.platform)) return undefined;
-  return { branch: record.branch, platform: record.platform };
+  if (typeof record.branch !== "string" || !isPlatform(record.platform)
+    || typeof record.deepseekHarnessProfile !== "string"
+    || !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/.test(record.deepseekHarnessProfile)) return undefined;
+  return { branch: record.branch, platform: record.platform, deepseekHarnessProfile: record.deepseekHarnessProfile };
 }
 
 export function parseEditableRepository(value: unknown): EditableRepositorySetting | undefined {
@@ -36,5 +39,5 @@ export function parseEditableRepository(value: unknown): EditableRepositorySetti
 }
 
 function isPlatform(value: unknown): value is Platform {
-  return value === "codex" || value === "cursor" || value === "github-copilot" || value === "claude";
+  return value === "codex" || value === "cursor" || value === "github-copilot" || value === "claude" || value === "deepseek-harness";
 }

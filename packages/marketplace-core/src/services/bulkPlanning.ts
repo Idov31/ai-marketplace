@@ -35,7 +35,7 @@ export function availableBulkInstallScopes(candidates: readonly BulkInstallCandi
   return localInstallScopes.filter((scope) => candidates.some((candidate) => installOptionForScope(candidate.options, scope) !== undefined));
 }
 
-export function planBulkInstall(candidates: readonly BulkInstallCandidate[], scope: (typeof localInstallScopes)[number]): BulkInstallPlan {
+export function planBulkInstall(candidates: readonly BulkInstallCandidate[], scope: (typeof localInstallScopes)[number], platform?: Platform): BulkInstallPlan {
   const eligible: { selection: BulkPackageSelection; option: InstallOption }[] = [];
   const skipped: BulkPackageSelection[] = [];
   const seen = new Set<string>();
@@ -43,7 +43,7 @@ export function planBulkInstall(candidates: readonly BulkInstallCandidate[], sco
     const key = selectionKey(candidate.selection);
     if (seen.has(key)) continue;
     seen.add(key);
-    const option = installOptionForScope(candidate.options, scope);
+    const option = installOptionForScope(candidate.options, scope, platform);
     if (!option) {
       skipped.push(candidate.selection);
       continue;
@@ -87,8 +87,8 @@ export function matchingUninstallTargets(installed: readonly InstalledPackage[],
     && (selection.platform === undefined || item.platform === selection.platform));
 }
 
-function installOptionForScope(options: readonly InstallOption[], scope: (typeof localInstallScopes)[number]): InstallOption | undefined {
-  return options.find((option) => option.scope === scope && option.action !== "installCloud");
+function installOptionForScope(options: readonly InstallOption[], scope: (typeof localInstallScopes)[number], platform?: Platform): InstallOption | undefined {
+  return options.find((option) => option.scope === scope && option.action !== "installCloud" && (!platform || option.platform === platform));
 }
 
 function selectionKey(selection: BulkPackageSelection): string {

@@ -92,12 +92,18 @@ function validateNormalizedManifest(value: Record<string, unknown>, source: stri
   if (parsedPlatforms.length === 0) {
     throw new ValidationError(`Manifest at ${source} must include at least one platform.`);
   }
-  if (type === "hook" && parsedPlatforms.some((platform) => platform !== "codex" && platform !== "github-copilot" && platform !== "claude")) {
+  if (type === "hook" && parsedPlatforms.some((platform) => platform !== "codex" && platform !== "github-copilot" && platform !== "claude" && platform !== "deepseek-harness")) {
     throw new ValidationError(`Manifest at ${source} has an unsupported platform for hook packages.`);
   }
   const delivery = parseDelivery(manifestDelivery, type, source);
   if (delivery.includes("cloud") && parsedPlatforms.includes("claude")) {
     throw new ValidationError(`Manifest at ${source} cannot use cloud delivery for the Claude platform.`);
+  }
+  if (parsedPlatforms.length === 1 && parsedPlatforms[0] === "deepseek-harness") {
+    if (delivery.includes("cloud")) throw new ValidationError(`Manifest at ${source} cannot use cloud delivery for DeepSeek Harness.`);
+    if (type !== "skill" && type !== "rule" && delivery.includes("workspace")) {
+      throw new ValidationError(`Manifest at ${source} supports only global delivery for DeepSeek Harness ${type} packages.`);
+    }
   }
   const evaluationScore = type === "skill" || type === "command"
     ? optionalEvaluationScore(value, source)

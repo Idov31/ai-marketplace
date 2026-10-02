@@ -13,6 +13,23 @@ const { createEnvironmentCredentialProvider, credentialSourceSummary, redactCred
 
 const policy = { platform: "codex", displayName: "Codex", configFileName: "codex.json", mcpConfigRelativePath: ".codex/config.toml", supportedScopes: ["workspace", "global"] };
 
+test("Visual Studio has no implicit repository but retains configured sources and branches", () => {
+  const visualStudioPolicy = { ...policy, displayName: "Visual Studio", useDefaultRepository: false, allowDefaultPackages: false };
+  for (const raw of [{ schemaVersion: 1 }, { schemaVersion: 1, repositories: [] }]) {
+    const config = toMarketplaceConfig(raw, visualStudioPolicy);
+    assert.equal(config.repository, "");
+    assert.deepEqual(config.repositories, []);
+  }
+  const config = toMarketplaceConfig({ schemaVersion: 1, repositories: [
+    { id: "team", url: "https://github.com/example/packages", branch: "release/configurable", allowDefaultPackages: true }
+  ] }, visualStudioPolicy);
+  assert.equal(config.repositories[0].owner, "example");
+  assert.equal(config.repositories[0].repository, "packages");
+  assert.equal(config.repositories[0].branch, "release/configurable");
+  assert.equal(config.repositories[0].allowDefaultPackages, false);
+  assert.notEqual(toMarketplaceConfig({ schemaVersion: 1 }, policy).repository, "");
+});
+
 test("environment credentials preserve provider schemes and precedence", async () => {
   const env = { AZURE_DEVOPS_ACCESS_TOKEN: "entra", AZURE_DEVOPS_EXT_PAT: "pat", GITLAB_OAUTH_TOKEN: "oauth", GITLAB_TOKEN: "glpat", AI_MARKETPLACE_GITLAB_TOKEN_TEAM_A: "source" };
   const provider = createEnvironmentCredentialProvider(env);

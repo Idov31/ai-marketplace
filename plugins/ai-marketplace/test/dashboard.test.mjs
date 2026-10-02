@@ -175,6 +175,18 @@ test("loopback server enforces one-time bootstrap, cookie, Host, Origin, CSRF, C
   assert.equal(crossOrigin.status, 403);
   const valid = await fetch(`${server.origin}/api/plans`, { method: "POST", headers: { Cookie: cookie, Origin: server.origin, "X-CSRF-Token": csrfToken, "Content-Type": "application/json" }, body: JSON.stringify({ action: "sync" }) });
   assert.equal(valid.status, 200);
+  const planHeaders = { Cookie: cookie, Origin: server.origin, "X-CSRF-Token": csrfToken, "Content-Type": "application/json" };
+  for (const provider of ["github", "azure-devops", "gitlab"]) {
+    const source = { id: "team", url: "https://example.invalid/team/packages", provider };
+    const response = await fetch(`${server.origin}/api/plans`, { method: "POST", headers: planHeaders, body: JSON.stringify({ action: "source-add", source }) });
+    assert.equal(response.status, 200);
+    assert.deepEqual((await response.json()).request.source, source);
+  }
+  for (const provider of ["unknown", 123, { token: "not-a-provider" }]) {
+    const response = await fetch(`${server.origin}/api/plans`, { method: "POST", headers: planHeaders, body: JSON.stringify({ action: "source-add", source: { id: "team", url: "https://example.invalid/team/packages", provider } }) });
+    assert.equal(response.status, 400);
+    assert.match((await response.json()).error.message, /provider is unsupported/);
+  }
   const heartbeat = await fetch(`${server.origin}/api/heartbeat`, { method: "POST", headers: { Cookie: cookie, Origin: server.origin, "X-CSRF-Token": csrfToken, "Content-Type": "application/json" }, body: "{}" });
   assert.deepEqual(await heartbeat.json(), { ok: true, idleTimeoutMs: 1800000 });
   const apply = await fetch(`${server.origin}/api/plans/plan/apply`, { method: "POST", headers: { Cookie: cookie, Origin: server.origin, "X-CSRF-Token": csrfToken, "Content-Type": "application/json" }, body: "{}" });
@@ -194,16 +206,36 @@ test("dashboard closes after authenticated client inactivity", async (t) => {
   const storage = new NodeMarketplaceStorage(workspace, home);
   const application = { subscribe: () => () => {}, async getModel() { return {}; }, async getDetail() { return {}; }, async createPlan() { return {}; }, async applyPlan() { return {}; }, async refresh() { return {}; }, async diagnose() { return {}; } };
   let server;
-  try { server = await startDashboardServer({ workspace, storage, application, idleTimeoutMs: 100, idleCheckIntervalMs: 20 }); } catch (error) { if (error?.code === "EPERM") return t.skip("loopback listen is unavailable in this sandbox"); throw error; }
+  try { server = await startDashboardServer({ workspace, storage, application, idleTimeoutMs: 1000, idleCheckIntervalMs: 50 }); } catch (error) { if (error?.code === "EPERM") return t.skip("loopback listen is unavailable in this sandbox"); throw error; }
   t.after(() => server.close().catch(() => undefined));
   const descriptor = JSON.parse(await readFile(join(workspace, ".ai_marketplace", "dashboard.json"), "utf8"));
   const token = new URLSearchParams(new URL(descriptor.launchUrl).hash.slice(1)).get("token");
   const bootstrap = await fetch(`${server.origin}/api/bootstrap`, { method: "POST", headers: { Origin: server.origin, "X-Dashboard-Token": token } });
   assert.equal(bootstrap.status, 200);
-  await new Promise((resolve) => setTimeout(resolve, 180));
-  await assert.rejects(fetch(`${server.origin}/api/model`));
-  await assert.rejects(access(join(workspace, ".ai_marketplace", "dashboard.json")), { code: "ENOENT" });
+  await waitForRejection(() => fetch(`${server.origin}/api/model`), 5000);
+  await waitForRejection(() => access(join(workspace, ".ai_marketplace", "dashboard.json")), 1000);
 });
+
+test("dashboard applies a host exact-secret redactor to remote warnings", async () => {
+  const fixture = await applicationFixture();
+  const application = new DashboardApplication({
+    ...fixture.dependencies,
+    refreshCatalog: async () => ({ packages: [], warnings: ["remote echoed plain-opaque-token"] }),
+    redact: (value) => value.replaceAll("plain-opaque-token", "[REDACTED]")
+  });
+  const model = await application.refresh();
+  assert.doesNotMatch(JSON.stringify(model), /plain-opaque-token/);
+  assert.match(JSON.stringify(model), /\[REDACTED\]/);
+});
+
+async function waitForRejection(action, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try { await action(); } catch { return; }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error(`Expected operation to reject within ${timeoutMs}ms.`);
+}
 
 async function applicationFixture(options = {}) {
   let now = Date.parse("2026-08-08T00:00:00.000Z");
@@ -233,8 +265,9 @@ async function applicationFixture(options = {}) {
     plan: async (request) => ({ identity: request.action, summary: request.action, changes: [{ field: "autoUpdate", before: false, after: request.autoUpdate ?? false }], nextValue: request }),
     apply: async (request) => { if (request.action === "set-preferences") configurationState.preferences = { autoUpdate: request.autoUpdate, autoInstallGroups: request.autoInstallGroups }; configurationState.revision = `${configurationState.revision}-next`; }
   };
-  const application = new DashboardApplication({ service, marketplaceConfig: () => config(), configuration, refreshCatalog: async () => ({ packages: catalog, warnings: [] }), withOperationLock: async (_roots, action) => action(), now: () => new Date(now), planId: () => `plan-${now}` });
-  return { application, installed: installedState, configurationState, advance: (ms) => { now += ms; } };
+  const dependencies = { service, marketplaceConfig: () => config(), configuration, refreshCatalog: async () => ({ packages: catalog, warnings: [] }), withOperationLock: async (_roots, action) => action(), now: () => new Date(now), planId: () => `plan-${now}` };
+  const application = new DashboardApplication(dependencies);
+  return { application, dependencies, installed: installedState, configurationState, advance: (ms) => { now += ms; } };
 }
 
 function config() { return { repository: "owner/repo", branch: "main", packageFolders: { skill: "Skills/", command: "Commands/", mcp: "Mcps/", agent: "Agents/", hook: "Hooks/", rule: "Rules/" }, platformPathOverrides: {}, defaultPlatform: "codex" }; }
