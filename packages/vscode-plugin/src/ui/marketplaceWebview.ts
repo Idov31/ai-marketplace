@@ -225,7 +225,7 @@ export function parseBulkAction(value: unknown): BulkPackageAction | undefined {
 
 function isMessageRecord(value: unknown): value is WebviewMessage { return typeof value === "object" && value !== null && !Array.isArray(value); }
 function hasValidOptionalActionFields(value: WebviewMessage | Record<string, unknown>): boolean { return (value.platform === undefined || isPlatform(value.platform)) && (value.scope === undefined || isInstallScope(value.scope)) && (value.sourceId === undefined || typeof value.sourceId === "string") && (value.qualifiedName === undefined || typeof value.qualifiedName === "string") && (value.destinationSourceId === undefined || typeof value.destinationSourceId === "string") && (value.destinationQualifiedName === undefined || typeof value.destinationQualifiedName === "string") && (value.predecessorId === undefined || typeof value.predecessorId === "string") && (value.predecessorSourceId === undefined || typeof value.predecessorSourceId === "string") && (value.predecessorQualifiedName === undefined || typeof value.predecessorQualifiedName === "string"); }
-function isBulkAction(value: unknown): value is "install" | "update" | "migrate" | "uninstall" | "hotload" | "offload" { return value === "install" || value === "update" || value === "migrate" || value === "uninstall" || value === "hotload" || value === "offload"; }
+function isBulkAction(value: unknown): value is MarketplaceAction { return value === "install" || value === "installGlobal" || value === "installDifferentPlatform" || value === "update" || value === "migrate" || value === "revert" || value === "uninstall" || value === "hotload" || value === "offload"; }
 
 function renderHtml(webview: vscode.Webview, nonce: string, model: MarketplaceViewModel, iconUri: vscode.Uri): string {
   const csp = [
@@ -559,7 +559,7 @@ function renderHtml(webview: vscode.Webview, nonce: string, model: MarketplaceVi
       <span id="selectionCount" aria-live="polite">No packages selected</span>
       <button id="selectVisible" class="secondary" type="button">Select visible</button>
       <button id="clearSelection" class="secondary" type="button">Clear</button>
-      <button id="bulkPrimary" type="button"></button><div id="bulkMenu" class="action-menu"><button id="bulkMoreToggle" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="bulkMoreActions">More actions</button><div id="bulkMoreActions" role="menu"><button id="bulkInstall" type="button" role="menuitem">Install selected</button><button id="bulkUpdate" type="button" role="menuitem">Update selected</button><button id="bulkMigrate" type="button" role="menuitem">Migrate selected</button><button id="bulkHotload" type="button" role="menuitem">Hotload selected</button><button id="bulkOffload" type="button" role="menuitem">Offload selected</button><button id="bulkUninstall" class="danger" type="button" role="menuitem">Uninstall selected</button></div></div>
+      <button id="bulkPrimary" type="button"></button><div id="bulkMenu" class="action-menu" hidden><button id="bulkMoreToggle" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="bulkMoreActions">More actions</button><div id="bulkMoreActions" role="menu"><button id="bulkInstallDifferent" type="button" role="menuitem" data-bulk-action="installDifferentPlatform">Install for different platform</button><button id="bulkInstallGlobal" type="button" role="menuitem" data-bulk-action="installGlobal">Install in user directory</button><button id="bulkInstallGlobalDifferent" type="button" role="menuitem" data-bulk-action="installDifferentPlatform" data-bulk-scope="global">Install in user directory for different platform</button><button id="bulkRevert" type="button" role="menuitem" data-bulk-action="revert">Revert to previous version</button><button id="bulkUninstall" class="danger" type="button" role="menuitem" data-bulk-action="uninstall">Uninstall</button><button id="bulkUpdate" type="button" role="menuitem" data-bulk-action="update">Update selected</button><button id="bulkMigrate" type="button" role="menuitem" data-bulk-action="migrate">Migrate selected</button><button id="bulkHotload" type="button" role="menuitem" data-bulk-action="hotload">Hotload selected</button><button id="bulkOffload" type="button" role="menuitem" data-bulk-action="offload">Offload selected</button></div></div>
     </section>
     <section id="content"></section>
     </div>
@@ -725,12 +725,7 @@ function renderHtml(webview: vscode.Webview, nonce: string, model: MarketplaceVi
       render();
     });
     document.getElementById("clearSelection").addEventListener("click", () => { selected.clear(); render(); });
-    document.getElementById("bulkInstall").addEventListener("click", () => runBulk("install"));
-    document.getElementById("bulkUpdate").addEventListener("click", () => runBulk("update"));
-    document.getElementById("bulkMigrate").addEventListener("click", () => runBulk("migrate"));
-    document.getElementById("bulkUninstall").addEventListener("click", () => runBulk("uninstall"));
-    document.getElementById("bulkHotload").addEventListener("click", () => runBulk("hotload"));
-    document.getElementById("bulkOffload").addEventListener("click", () => runBulk("offload"));
+    document.querySelectorAll("[data-bulk-action]").forEach((button) => button.addEventListener("click", () => runBulk(button.dataset.bulkAction, button.dataset.bulkScope)));
     document.getElementById("bulkPrimary").addEventListener("click", (event) => runBulk(event.currentTarget.dataset.action));
     bindBulkMenu();
 
@@ -938,16 +933,34 @@ function renderHtml(webview: vscode.Webview, nonce: string, model: MarketplaceVi
       const rows = [...selected.values()].filter((row) => row.kind === activeTab);
       document.querySelector(".bulk-actions").hidden = rows.length === 0;
       document.getElementById("selectionCount").textContent = rows.length ? rows.length + " package(s) selected" : "No packages selected";
-      const eligible = { install: rows.length > 0 && rows.every((row) => row.kind === "available") && rows.some((row) => row.installOptions.some((option) => option.scope === "workspace" || option.scope === "global")), update: rows.length > 0 && rows.every((row) => row.kind === "installed" && row.updateAvailable), migrate: rows.length > 0 && rows.every((row) => row.migration), hotload: rows.length > 0 && rows.every((row) => row.kind === "installed" && row.scope !== "cloud" && row.type !== "mcp" && row.installedPath.startsWith(".offload/")), offload: rows.length > 0 && rows.every((row) => row.kind === "installed" && row.scope !== "cloud" && row.type !== "mcp" && !row.installedPath.startsWith(".offload/")), uninstall: rows.length > 0 && rows.every((row) => row.kind === "installed") };
-      const actions = ["install", "update", "migrate", "hotload", "offload", "uninstall"].filter((action) => eligible[action]); const primary = actions[0]; const primaryButton = document.getElementById("bulkPrimary"); primaryButton.hidden = !primary; primaryButton.dataset.action = primary || ""; primaryButton.textContent = primary ? ({ install: "Install selected", update: "Update selected", migrate: "Migrate selected", hotload: "Hotload selected", offload: "Offload selected", uninstall: "Uninstall selected" })[primary] : ""; ["install", "update", "migrate", "hotload", "offload", "uninstall"].forEach((action) => { const button = document.getElementById("bulk" + action.charAt(0).toUpperCase() + action.slice(1)); if (button) button.hidden = !eligible[action] || action === primary; }); document.getElementById("bulkMenu").hidden = actions.length < 2;
+      const availableRows = rows.filter((row) => row.kind === "available" || row.kind === "installed" && model.packages.some((pkg) => pkg.sourceId === row.sourceId && pkg.qualifiedName === row.qualifiedName));
+      const packagesForRows = availableRows.map((row) => model.packages.find((pkg) => pkg.sourceId === row.sourceId && pkg.qualifiedName === row.qualifiedName) || row).filter((pkg) => pkg.platforms);
+      const installEligible = (scope, different) => packagesForRows.some((pkg) => pkg.platforms.some((target) =>
+        pkg.delivery?.includes(scope) && (!different || target !== (pkg.platform || model.defaultPlatform)) && !model.installed.some((item) => item.sourceId === pkg.sourceId && item.qualifiedName === pkg.qualifiedName && item.platform === target && item.scope === scope)));
+      const eligible = {
+        install: installEligible("workspace", false),
+        installGlobal: installEligible("global", false),
+        installDifferentPlatform: installEligible("workspace", true),
+        installGlobalDifferent: installEligible("global", true),
+        update: rows.some((row) => row.kind === "installed" && row.updateAvailable), migrate: rows.some((row) => row.migration),
+        revert: rows.some((row) => row.kind === "installed" && row.moreActions?.some((option) => option.action === "revert" && !option.disabled)),
+        hotload: rows.some((row) => row.kind === "installed" && row.scope !== "cloud" && row.type !== "mcp" && row.installedPath.startsWith(".offload/")),
+        offload: rows.some((row) => row.kind === "installed" && row.scope !== "cloud" && row.type !== "mcp" && !row.installedPath.startsWith(".offload/")),
+        uninstall: rows.some((row) => row.kind === "installed")
+      };
+      const primary = eligible.install ? "install" : eligible.update ? "update" : eligible.migrate ? "migrate" : eligible.hotload ? "hotload" : eligible.offload ? "offload" : "";
+      const primaryButton = document.getElementById("bulkPrimary"); primaryButton.hidden = !primary; primaryButton.dataset.action = primary; primaryButton.textContent = primary ? ({ install: "Install selected", update: "Update selected", migrate: "Migrate selected", hotload: "Hotload selected", offload: "Offload selected" })[primary] : "";
+      const menuActions = { installDifferentPlatform: eligible.installDifferentPlatform, installGlobal: eligible.installGlobal, installGlobalDifferent: eligible.installGlobalDifferent, revert: eligible.revert, uninstall: eligible.uninstall, update: eligible.update, migrate: eligible.migrate, hotload: eligible.hotload, offload: eligible.offload };
+      Object.entries(menuActions).forEach(([key, visible]) => { const button = document.getElementById("bulk" + key.charAt(0).toUpperCase() + key.slice(1)); if (button) button.hidden = !visible || key === primary; });
+      document.getElementById("bulkMenu").hidden = Object.entries(menuActions).filter(([key, visible]) => visible && key !== primary).length === 0;
     }
     function bindBulkMenu() { const wrapper = document.getElementById("bulkMenu"); const toggle = document.getElementById("bulkMoreToggle"); const menu = document.getElementById("bulkMoreActions"); toggle.addEventListener("click", () => { const open = !wrapper.classList.contains("open"); wrapper.classList.toggle("open", open); toggle.setAttribute("aria-expanded", String(open)); if (open) menu.querySelector('[role="menuitem"]:not([hidden])')?.focus(); }); menu.addEventListener("keydown", (event) => { const items = [...menu.querySelectorAll('[role="menuitem"]:not([hidden])')]; const index = items.indexOf(document.activeElement); if (event.key === "Escape") { wrapper.classList.remove("open"); toggle.setAttribute("aria-expanded", "false"); toggle.focus(); } if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) { items[event.key === "Home" ? 0 : event.key === "End" ? items.length - 1 : (index + (event.key === "ArrowDown" ? 1 : items.length - 1)) % items.length]?.focus(); event.preventDefault(); } }); }
-    function runBulk(action) {
+    function runBulk(action, scope) {
       const rows = [...selected.values()].filter((row) => row.kind === activeTab);
       const selections = rows.map((row) => {
-        const preserveTarget = action !== "install" && action !== "uninstall";
+        const preserveTarget = !["install", "installGlobal", "installDifferentPlatform"].includes(action) && action !== "uninstall";
         const migration = row.migration || {};
-        return { action, packageId: row.id, sourceId: row.sourceId, qualifiedName: row.qualifiedName, platform: action === "uninstall" || preserveTarget ? (row.platform || migration.platform) : undefined, scope: preserveTarget ? (row.scope || migration.scope) : undefined, destinationSourceId: migration.destinationSourceId, destinationQualifiedName: migration.destinationQualifiedName, predecessorId: migration.predecessorId, predecessorSourceId: migration.predecessorSourceId, predecessorQualifiedName: migration.predecessorQualifiedName };
+        return { action: action === "installGlobal" ? "installGlobal" : action, packageId: row.id, sourceId: row.sourceId, qualifiedName: row.qualifiedName, platform: action === "uninstall" || preserveTarget ? (row.platform || migration.platform) : undefined, scope: scope || (action === "installGlobal" ? "global" : preserveTarget ? (row.scope || migration.scope) : undefined), destinationSourceId: migration.destinationSourceId, destinationQualifiedName: migration.destinationQualifiedName, predecessorId: migration.predecessorId, predecessorSourceId: migration.predecessorSourceId, predecessorQualifiedName: migration.predecessorQualifiedName };
       });
       if (selections.length) vscode.postMessage({ command: "bulkPackageAction", selections });
     }

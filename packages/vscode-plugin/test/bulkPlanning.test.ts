@@ -21,6 +21,17 @@ describe("bulk action planning", () => {
     assert.deepEqual(plan.skipped.map((item) => item.packageId), ["workspace-only"]);
   });
 
+  it("plans one destination platform for the eligible packages and skips the rest", () => {
+    const candidates = [
+      { selection: { packageId: "codex", sourceId: "default", qualifiedName: "@team/codex" }, options: [workspaceAndGlobal[0]] },
+      { selection: { packageId: "cursor", sourceId: "default", qualifiedName: "@team/cursor" }, options: [{ ...workspaceAndGlobal[0], platform: "cursor" as const }] }
+    ];
+    const plan = planBulkInstall(candidates, "workspace", "cursor");
+    assert.equal(plan.eligible.length, 1);
+    assert.equal(plan.eligible[0].option.platform, "cursor");
+    assert.deepEqual(plan.skipped.map((item) => item.packageId), ["codex"]);
+  });
+
   it("resolves bulk uninstall to the selected platform and chosen scope", () => {
     const installed = [installedPackage("workspace"), installedPackage("global"), { ...installedPackage("global"), platform: "claude" as const }];
     const selection = { packageId: "my-skill", sourceId: "default", qualifiedName: "@team/my-skill", platform: "codex" as const };

@@ -11365,6 +11365,7 @@ var require_marketplaceModel = __commonJS({
           version: pkg.manifest.version,
           description: pkg.manifest.description,
           platforms: pkg.manifest.platforms,
+          delivery: pkg.manifest.delivery,
           tags: pkg.manifest.tags,
           evaluationScore: pkg.manifest.evaluationScore,
           hotload: pkg.hotload,
@@ -11749,7 +11750,7 @@ var require_bulkPlanning = __commonJS({
     function availableBulkInstallScopes(candidates) {
       return localInstallScopes.filter((scope) => candidates.some((candidate) => installOptionForScope2(candidate.options, scope) !== void 0));
     }
-    function planBulkInstall2(candidates, scope) {
+    function planBulkInstall2(candidates, scope, platform) {
       const eligible = [];
       const skipped = [];
       const seen = /* @__PURE__ */ new Set();
@@ -11758,7 +11759,7 @@ var require_bulkPlanning = __commonJS({
         if (seen.has(key))
           continue;
         seen.add(key);
-        const option = installOptionForScope2(candidate.options, scope);
+        const option = installOptionForScope2(candidate.options, scope, platform);
         if (!option) {
           skipped.push(candidate.selection);
           continue;
@@ -11796,8 +11797,8 @@ var require_bulkPlanning = __commonJS({
     function matchingUninstallTargets2(installed, selection) {
       return installed.filter((item) => item.id === selection.packageId && (selection.sourceId === void 0 || item.sourceId === selection.sourceId) && (selection.qualifiedName === void 0 || (item.qualifiedName ?? item.id) === selection.qualifiedName) && (selection.platform === void 0 || item.platform === selection.platform));
     }
-    function installOptionForScope2(options, scope) {
-      return options.find((option) => option.scope === scope && option.action !== "installCloud");
+    function installOptionForScope2(options, scope, platform) {
+      return options.find((option) => option.scope === scope && option.action !== "installCloud" && (!platform || option.platform === platform));
     }
     function selectionKey2(selection) {
       return `${selection.sourceId ?? "legacy"}:${selection.qualifiedName ?? selection.packageId}:${selection.platform ?? ""}`;
@@ -15700,6 +15701,7 @@ function toSerializableMarketplaceModel(model) {
       version: pkg.manifest.version,
       description: pkg.manifest.description,
       platforms: pkg.manifest.platforms,
+      delivery: pkg.manifest.delivery,
       tags: pkg.manifest.tags,
       evaluationScore: pkg.manifest.evaluationScore,
       hotload: pkg.hotload,
@@ -16013,7 +16015,7 @@ function orderedPlatforms(availablePlatforms, defaultPlatform) {
 }
 
 // packages/marketplace-core/src/services/bulkPlanning.ts
-function planBulkInstall(candidates, scope) {
+function planBulkInstall(candidates, scope, platform) {
   const eligible = [];
   const skipped = [];
   const seen = /* @__PURE__ */ new Set();
@@ -16021,7 +16023,7 @@ function planBulkInstall(candidates, scope) {
     const key = selectionKey(candidate.selection);
     if (seen.has(key)) continue;
     seen.add(key);
-    const option = installOptionForScope(candidate.options, scope);
+    const option = installOptionForScope(candidate.options, scope, platform);
     if (!option) {
       skipped.push(candidate.selection);
       continue;
@@ -16055,8 +16057,8 @@ function planBulkUninstall(candidates, scope) {
 function matchingUninstallTargets(installed, selection) {
   return installed.filter((item) => item.id === selection.packageId && (selection.sourceId === void 0 || item.sourceId === selection.sourceId) && (selection.qualifiedName === void 0 || (item.qualifiedName ?? item.id) === selection.qualifiedName) && (selection.platform === void 0 || item.platform === selection.platform));
 }
-function installOptionForScope(options, scope) {
-  return options.find((option) => option.scope === scope && option.action !== "installCloud");
+function installOptionForScope(options, scope, platform) {
+  return options.find((option) => option.scope === scope && option.action !== "installCloud" && (!platform || option.platform === platform));
 }
 function selectionKey(selection) {
   return `${selection.sourceId ?? "legacy"}:${selection.qualifiedName ?? selection.packageId}:${selection.platform ?? ""}`;

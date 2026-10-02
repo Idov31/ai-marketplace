@@ -25,6 +25,7 @@ export interface SerializablePackage {
   readonly version: string;
   readonly description: string;
   readonly platforms: readonly Platform[];
+  readonly delivery: readonly InstallScope[];
   readonly tags: readonly string[];
   readonly evaluationScore?: number;
   readonly hotload: boolean;
@@ -150,6 +151,7 @@ export function toSerializableMarketplaceModel(model: {
         version: pkg.manifest.version,
         description: pkg.manifest.description,
         platforms: pkg.manifest.platforms,
+        delivery: pkg.manifest.delivery,
         tags: pkg.manifest.tags,
         evaluationScore: pkg.manifest.evaluationScore,
         hotload: pkg.hotload,
