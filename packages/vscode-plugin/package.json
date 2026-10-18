@@ -232,7 +232,7 @@
     "@types/node": "^26.6.2",
     "@types/vscode": "1.140.0",
     "@typescript-eslint/eslint-plugin": "^8.71.1",
-    "@typescript-eslint/parser": "^8.71.1",
+    "@typescript-eslint/parser": "^8.71.2",
     "@vscode/test-cli": "^0.0.15",
     "@vscode/vsce": "^4.0.0",
     "esbuild": "^0.28.1",
