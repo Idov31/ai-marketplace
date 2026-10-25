@@ -41,7 +41,7 @@
     "@types/node": "^26.6.5",
     "@types/vscode": "1.140.0",
     "@typescript-eslint/eslint-plugin": "^8.71.2",
-    "@typescript-eslint/parser": "^8.71.2",
+    "@typescript-eslint/parser": "^8.72.0",
     "@vscode/test-cli": "^0.0.15",
     "@vscode/vsce": "^4.0.0",
     "ajv": "^8.20.0",
