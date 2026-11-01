@@ -230,7 +230,7 @@
   "devDependencies": {
     "@ai-marketplace/core": "1.1.0",
     "@types/node": "^26.6.6",
-    "@types/vscode": "1.140.0",
+    "@types/vscode": "1.144.0",
     "@typescript-eslint/eslint-plugin": "^8.72.1",
     "@typescript-eslint/parser": "^8.72.1",
     "@vscode/test-cli": "^0.0.15",
