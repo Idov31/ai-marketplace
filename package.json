@@ -37,7 +37,7 @@
     "test:visualstudio-native": "npm run test -w @ai-marketplace/visualstudio-plugin"
   },
   "devDependencies": {
-    "@anthropic-ai/claude-code": "2.1.312",
+    "@anthropic-ai/claude-code": "2.1.318",
     "@types/node": "^26.6.6",
     "@types/vscode": "1.144.0",
     "@typescript-eslint/eslint-plugin": "^8.72.1",
